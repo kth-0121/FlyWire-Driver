@@ -1,0 +1,9 @@
+data/
+run.png
+__pycache__/
+train.log
+drive.png
+train*.log
+train.err
+drive_*.png
+MUJOCO_LOG.TXT
