@@ -10,6 +10,7 @@
 
 python train.py           수집(병렬) → 학습 → 뇌로 주행 시험 → data/brain_run.npz 저장
 python train.py --dagger  뇌가 주행·교사가 정답 표시한 표본 추가 → 재학습 → 시험 (반복 가능)
+python train.py --eval    seed 101~106 으로 6회 병렬 시험 (합격률)
 python train.py --test    저장된 readout.npz 로 주행 시험만
 python train.py --replay  저장된 뇌 주행을 3D 창에서 실제 속도로 재생
 """
@@ -224,7 +225,14 @@ def dagger(seed):
     return part
 
 
-def drive(fly, readout, seed=TEST_SEED):
+def evaluate(seed):
+    """다른 seed(돌발 위치·신호 시점)로 뇌 주행 1회. 반환 (seed, 결과, 점수, 진행 m, 감점 내역)."""
+    env, info = drive(FlyDriver(seed), np.load("readout.npz"), seed, path=None)
+    print(f"  [시험 seed {seed}] {info['result']} 점수 {info['score']} 진행 {info['progress']:.1f}m t={info['t']:.0f}s", flush=True)
+    return seed, info["result"], info["score"], info["progress"], [m for _, m, _ in info["log"]]
+
+
+def drive(fly, readout, seed=TEST_SEED, path=RUN):
     """뇌만으로 전체 코스 1회 (교사 없음). 재생용 기록 저장. 반환 env, info."""
     env, driver = sim.Env(seed=seed), BrainDriver(fly, readout)
     obs, done = env.reset(), False
@@ -239,7 +247,8 @@ def drive(fly, readout, seed=TEST_SEED):
         if len(rec["t"]) % 200 == 0:
             print(f"  뇌 주행 t={env.t:.0f}s 진행 {info['progress']:.1f}/{env.length:.1f}m 점수 {info['score']} "
                   f"({time.perf_counter() - t0:.0f}s)", flush=True)
-    np.savez(RUN, seed=seed, result=info["result"], score=info["score"], **{k: np.array(v) for k, v in rec.items()})
+    if path:
+        np.savez(path, seed=seed, result=info["result"], score=info["score"], **{k: np.array(v) for k, v in rec.items()})
     return env, info
 
 
@@ -268,8 +277,17 @@ def replay(path=RUN):
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.set_start_method("spawn")    # Linux fork 는 MuJoCo/OpenGL 로드 뒤 멈춤 (Windows 는 원래 spawn)
     if "--replay" in sys.argv:
         replay()
+        sys.exit()
+    if "--eval" in sys.argv:
+        with Pool(6) as pool:
+            res = pool.map(evaluate, range(TEST_SEED + 1, TEST_SEED + 7))
+        print(f"합격 {sum(r[1] == '합격' for r in res)}/{len(res)}, 평균 점수 {np.mean([r[2] for r in res]):.0f}", flush=True)
+        for r in res:
+            print("  ", r, flush=True)
         sys.exit()
     if "--dagger" in sys.argv:
         d = np.load("data/drive_data.npz")

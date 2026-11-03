@@ -1,0 +1,735 @@
+<title>FlyDrive 조립 모형</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+/* 작업대 위 모형: 왼쪽 부품 패널 + 오른쪽 3D 작업대 (커팅 매트) */
+:root {
+  --bg: #15191c; --panel: #1d2327; --line: #2f383e; --fg: #e8ece9; --dim: #93a09a;
+  --accent: #f2c200; --mat: #2e6b4f; --hl: #6fd3a8;
+  --sans: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); overflow: hidden; }
+#app { position: relative; height: 100%; display: grid; grid-template-columns: 340px 1fr; }
+#panel { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+#panel header { padding: 18px 18px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.sub { color: var(--dim); font-size: 12px; line-height: 1.5; }
+.tabs { display: flex; gap: 6px; padding: 12px 18px 0; }
+.tab { flex: 1; padding: 8px 0; border: 1px solid var(--line); background: transparent; color: var(--dim); font: 600 13px var(--sans); border-radius: 6px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--accent); color: #1b1b12; border-color: var(--accent); }
+.controls { padding: 14px 18px; display: grid; gap: 12px; border-bottom: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lbl { font: 600 11px var(--mono); color: var(--dim); letter-spacing: .06em; text-transform: uppercase; width: 100%; }
+button.chip { padding: 6px 10px; border: 1px solid var(--line); background: #252c31; color: var(--fg); font: 500 12px var(--sans); border-radius: 999px; cursor: pointer; }
+button.chip[aria-pressed="true"] { border-color: var(--hl); color: var(--hl); background: #1f3a2f; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+#parts { overflow-y: auto; flex: 1; min-height: 0; padding: 6px 10px 18px; }
+.part { display: grid; grid-template-columns: 34px 1fr; gap: 2px 10px; padding: 9px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.part:hover { background: #242b30; }
+.part.sel { border-color: var(--hl); background: #1f3129; }
+.no { grid-row: span 2; font: 600 11px var(--mono); color: #1b1b12; background: var(--accent); border-radius: 4px; height: 22px; display: grid; place-items: center; }
+.no.kit { background: #3a454c; color: var(--fg); }
+.pn { font-size: 13px; font-weight: 600; }
+.ps { font-size: 11.5px; color: var(--dim); font-family: var(--mono); line-height: 1.45; }
+#stage { position: relative; min-width: 0; min-height: 0; }
+canvas#c { display: block; width: 100%; height: 100%; }
+#tip { position: absolute; pointer-events: none; background: rgba(20,24,27,.92); border: 1px solid var(--line); padding: 7px 10px; border-radius: 6px; font-size: 12px; max-width: 260px; }
+#tip b { display: block; font-size: 13px; }
+#tip span { color: var(--dim); font-family: var(--mono); font-size: 11px; }
+#hint { position: absolute; left: 14px; bottom: 12px; font: 11px var(--mono); color: var(--dim); }
+#pipLabel { position: absolute; right: 14px; font: 600 11px var(--mono); color: var(--hl); }
+#phase { position: absolute; left: 14px; top: 12px; font: 600 13px var(--sans); background: rgba(20,24,27,.85); border: 1px solid var(--line); padding: 8px 12px; border-radius: 6px; }
+#loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font: 13px var(--mono); }
+@media (max-width: 760px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: 58% 42%; }
+  #panel { grid-row: 2; border-right: 0; border-top: 1px solid var(--line); overflow-y: auto; }
+  #parts { overflow: visible; }
+  #panel header .sub { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="app">
+  <aside id="panel">
+    <header>
+      <h1>FlyDrive 조립 모형</h1>
+      <div class="sub">주문서 부품을 실제 크기(mm)로 조립한 모형. 부품을 누르면 그 부품만 보이고, 노란 번호는 주문서 no 입니다.</div>
+    </header>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tabCar" aria-selected="true">자동차</button>
+      <button class="tab" role="tab" id="tabSig" aria-selected="false">신호등</button>
+    </div>
+    <div class="controls" id="carControls">
+      <div class="row"><span class="lbl">분해</span><input type="range" id="explode" min="0" max="100" value="0" aria-label="분해 정도"></div>
+      <div class="row"><span class="lbl">보기</span>
+        <button class="chip" data-view="iso">비스듬히</button><button class="chip" data-view="front">앞</button>
+        <button class="chip" data-view="side">옆</button><button class="chip" data-view="top">위</button><button class="chip" data-view="under">밑</button>
+      </div>
+      <div class="row"><span class="lbl">표시</span>
+        <button class="chip" id="tWires" aria-pressed="true">전선</button>
+        <button class="chip" id="tPip" aria-pressed="true">ESP32-CAM 화면</button>
+        <button class="chip" id="tGlass" aria-pressed="false">판 투명</button>
+      </div>
+      <div class="row"><span class="lbl">동작</span>
+        <button class="chip" id="bLeft" aria-pressed="false">좌 깜빡이</button><button class="chip" id="bRight" aria-pressed="false">우 깜빡이</button>
+        <button class="chip" id="bHaz" aria-pressed="false">비상등</button><button class="chip" id="bDrive" aria-pressed="false">바퀴 돌리기</button>
+      </div>
+    </div>
+    <div class="controls" id="sigControls" hidden>
+      <div class="row"><span class="lbl">신호</span>
+        <button class="chip" id="bCycle" aria-pressed="true">road_signal.ino 순서로 켜기</button>
+      </div>
+      <div class="sub">기둥 높이 33cm, 팔 26cm, 등 중심 30cm. 이 등 하나 = 동서 방향 (남는 Uno 사용) (D2 빨강 · D3 노랑 · D4 화살표 · D5 초록). 마주 보는 등은 같은 핀에 병렬.</div>
+    </div>
+    <div id="parts" role="list"></div>
+  </aside>
+  <main id="stage">
+    <canvas id="c"></canvas>
+    <div id="loading">모형 만드는 중…</div>
+    <div id="tip" hidden></div>
+    <div id="phase" hidden></div>
+    <div id="pipLabel" hidden>ESP32-CAM 이 보는 화면 (아래로 30°, 세로 화각 92°)</div>
+    <div id="hint">드래그 = 회전 · 휠 = 확대 · 오른쪽 드래그 = 이동 · 부품에 올리면 이름</div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+"use strict";
+// ───────────────────────── 공통 도구 (단위 mm, 자동차 좌표: x 앞, y 왼쪽, z 위)
+const PI = Math.PI, V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const MATS = {};
+function M(name, color, o = {}) {
+  return MATS[name] || (MATS[name] = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: .6, metalness: 0 }, o)));
+}
+const mat = {
+  foamex: () => M("foamex", 0xf1f1ec, { roughness: .95 }),
+  black: () => M("black", 0x1b1c1e, { roughness: .55 }),
+  plastic: () => M("plastic", 0x2a2b2d, { roughness: .45 }),
+  silver: () => M("silver", 0xcfd3d6, { metalness: .9, roughness: .28 }),
+  steel: () => M("steel", 0x9aa1a6, { metalness: .85, roughness: .4 }),
+  gold: () => M("gold", 0xd6a84a, { metalness: .9, roughness: .3 }),
+  brass: () => M("brass", 0xc9a33a, { metalness: .85, roughness: .35 }),
+  copper: () => M("copper", 0xc8743a, { metalness: .8, roughness: .35 }),
+  alu: () => M("alu", 0xb8bec4, { metalness: .75, roughness: .38 }),
+  yellow: () => M("yellow", 0xf3c623, { roughness: .45 }),
+  tire: () => M("tire", 0x161616, { roughness: .92 }),
+  white: () => M("white", 0xf4f4f0, { roughness: .5 }),
+  blueTerm: () => M("blueTerm", 0x1f6fd0, { roughness: .4 }),
+  heat: () => M("heat", 0x111214, { roughness: .35, metalness: .4 }),
+  cap: () => M("cap", 0x1d3d8f, { roughness: .35 }),
+  tape: () => M("tape", 0xe9e6dc, { roughness: 1 }),
+  glass: () => M("glass", 0x223344, { roughness: .05, metalness: .2, transparent: true, opacity: .85 }),
+  cell: () => M("cell", 0x1f8f6a, { roughness: .35 }),
+  beige: () => M("beige", 0xd9c39a, { roughness: .6 }),
+};
+function add(p, geo, m, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+  const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz);
+  o.castShadow = o.receiveShadow = true; p.add(o); return o;
+}
+const box = (p, w, d, h, m, x, y, z, rz = 0) => add(p, new THREE.BoxGeometry(w, d, h), m, x, y, z, 0, 0, rz);
+const cylZ = (p, r, h, m, x, y, z, s = 24, r2 = r) => add(p, new THREE.CylinderGeometry(r2, r, h, s), m, x, y, z, PI / 2, 0, 0);
+const cylX = (p, r, h, m, x, y, z, s = 24) => add(p, new THREE.CylinderGeometry(r, r, h, s), m, x, y, z, 0, 0, PI / 2);
+const cylY = (p, r, h, m, x, y, z, s = 24) => add(p, new THREE.CylinderGeometry(r, r, h, s), m, x, y, z);
+const grp = (p, x = 0, y = 0, z = 0) => { const g = new THREE.Group(); g.position.set(x, y, z); p.add(g); return g; };
+
+// 실크인쇄가 있는 기판 윗면: mm 좌표(y 위)로 그리는 캔버스 텍스처
+function pcbTex(w, h, bg, draw, s = 12) {
+  const c = document.createElement("canvas"); c.width = Math.round(w * s); c.height = Math.round(h * s);
+  const g = c.getContext("2d"); g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height);
+  g.save(); g.scale(s, -s); g.translate(0, -h); draw(g); g.restore();
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 8; t.encoding = THREE.sRGBEncoding; return t;
+}
+function T(g, s, x, y, size, o = {}) {
+  g.save(); g.translate(x, y); g.scale(1, -1); if (o.rot) g.rotate(-o.rot);
+  g.font = `${o.w || 600} ${size}px ${o.f || '"IBM Plex Mono", monospace'}`; g.fillStyle = o.c || "#f4f4ef";
+  g.textAlign = o.a || "center"; g.textBaseline = "middle"; g.fillText(s, 0, 0); g.restore();
+}
+function ring(g, x, y, r, c = "#d9d9d0") { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, 2 * PI); g.fill(); g.fillStyle = "#0c0c0c"; g.beginPath(); g.arc(x, y, r * .62, 0, 2 * PI); g.fill(); }
+function traces(g, w, h, color, n, seed) {
+  let s = seed; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  g.strokeStyle = color; g.lineWidth = .35; g.lineCap = "round";
+  for (let i = 0; i < n; i++) { let x = r() * w, y = r() * h; g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 3; k++) { if (r() < .5) x += (r() - .5) * 18; else y += (r() - .5) * 18; g.lineTo(x, y); } g.stroke(); }
+}
+function pcb(p, w, d, t, color, tex, x, y, z) {
+  const side = M("pcbside" + color, color, { roughness: .5 });
+  const top = new THREE.MeshStandardMaterial({ map: tex, roughness: .45 });
+  return add(p, new THREE.BoxGeometry(w, d, t), [side, side, side, side, top, side], x, y, z);
+}
+// 수 헤더 핀 n개 (x 방향으로 늘어섬), 받침 위 z
+function maleHeader(p, n, x0, y, z, pitch = 2.54, len = 8.5, dir = 1) {
+  box(p, n * pitch, 2.5, 2.5, mat.black(), x0 + (n - 1) * pitch / 2, y, z + dir * 1.25);
+  for (let i = 0; i < n; i++) box(p, .64, .64, len, mat.gold(), x0 + i * pitch, y, z + dir * (len / 2 - .6));
+}
+function femaleHeader(p, n, x0, y, z, along = "x") {
+  const L = n * 2.54, g = grp(p);
+  if (along === "x") { box(g, L, 2.5, 8.5, mat.black(), x0 + (n - 1) * 1.27, y, z + 4.25);
+    for (let i = 0; i < n; i++) box(g, 1, 1, .2, M("hole", 0x050505), x0 + i * 2.54, y, z + 8.55); }
+  else { box(g, 2.5, L, 8.5, mat.black(), x0, y + (n - 1) * 1.27, z + 4.25);
+    for (let i = 0; i < n; i++) box(g, 1, 1, .2, M("hole", 0x050505), x0, y + i * 2.54, z + 8.55); }
+  return g;
+}
+function hexNut(p, x, y, z, h = 2.4) { return add(p, new THREE.CylinderGeometry(3.2, 3.2, h, 6), mat.steel(), x, y, z, PI / 2, 0, 0); }
+function screwHead(p, x, y, z, up = 1) {
+  const g = grp(p, x, y, z); cylZ(g, 2.8, 1.8, mat.steel(), 0, 0, up * .9, 20);
+  box(g, 3.6, .6, .4, M("slot", 0x333333), 0, 0, up * 1.8); box(g, .6, 3.6, .4, M("slot", 0x333333), 0, 0, up * 1.8); return g;
+}
+function resistor(p, x, y, z, rz = 0, bands = ["#c0201e", "#c0201e", "#6b3a1f", "#c9a33a"]) {
+  const g = grp(p, x, y, z); g.rotation.z = rz;
+  const t = pcbTex(6.5, 2.4, "#d9c39a", gg => { bands.forEach((c, i) => { gg.fillStyle = c; gg.fillRect(1 + i * 1.2 + (i === 3 ? .6 : 0), 0, .6, 2.4); }); }, 40);
+  add(g, new THREE.CylinderGeometry(1.2, 1.2, 6.5, 16), new THREE.MeshStandardMaterial({ map: t, roughness: .6 }), 0, 0, 0, 0, 0, PI / 2);
+  cylX(g, .3, 14, mat.silver(), 0, 0, 0, 8); return g;
+}
+function wire(p, pts, color, r = .75) {
+  const curve = new THREE.CatmullRomCurve3(pts.map(a => V3(...a)), false, "centripetal");
+  return add(p, new THREE.TubeGeometry(curve, Math.max(24, pts.length * 14), r, 8, false), M("w" + color, color, { roughness: .5 }));
+}
+function dupont(p, x, y, z) { box(p, 2.54, 2.54, 12, mat.black(), x, y, z + 6); }
+
+// ───────────────────────── 부품 등록 (목록·강조·분해)
+const parts = [];
+function part(info, objs) { const pt = Object.assign({ objs, meshes: [] }, info); parts.push(pt); return pt; }
+
+// ───────────────────────── 자동차 (car3d.py · assembly.py 치수)
+const F = 65, R = 152.5, W = 135, Z1 = 42, Z2 = Z1 + 3 + 30, WR = 32.5, WY = 82.5;
+const LX = -2;                                    // L298N 중심 x
+const UNO0 = [-109.3, -26.65], UNOZ = Z2 + 3 + 4.8;     // Uno 기판 원점(USB 쪽 모서리), 기판 밑면
+const UNO_HOLES = [[14.0, 2.5], [15.3, 50.7], [66.1, 7.6], [66.1, 35.5]];
+const STANDOFFS = [[-140, 42], [-140, -42], [-5, 42], [-5, -42]];
+const LEDS = [[58, 58], [58, -58], [-145, 58], [-145, -58]];
+const unoPin = (bx, top) => V3(UNO0[0] + bx, UNO0[1] + (top ? 51.0 : 2.5), UNOZ + 1.6 + 8.5);
+const DPIN = { 13: 29.0, 12: 31.5, 11: 34.0, 10: 36.6, 9: 39.1, 8: 41.7, 7: 45.7, 6: 48.3, 5: 50.8, 4: 53.3, 3: 55.9, 2: 58.4, GND: 26.4 };
+const PPIN = { "5V": 38.1, GND: 40.6, GND2: 43.2, VIN: 45.7 };
+
+function plate(p, w0, w1, d0, d1, holes, z) {
+  const s = new THREE.Shape(); s.moveTo(w0, d0); s.lineTo(w1, d0); s.lineTo(w1, d1); s.lineTo(w0, d1); s.lineTo(w0, d0);
+  holes.forEach(([x, y, dia]) => { const h = new THREE.Path(); h.absarc(x, y, dia / 2, 0, 2 * PI, true); s.holes.push(h); });
+  const g = new THREE.ExtrudeGeometry(s, { depth: 3, bevelEnabled: false, curveSegments: 20 });
+  return add(p, g, mat.foamex(), 0, 0, z);
+}
+
+function ttMotor(p, side) {           // 원점 = 출력축 중심. 기어박스 노랑 + 은색 모터 + 흰 축
+  const g = grp(p, 0, side * 56, WR);
+  const s = new THREE.Shape(); s.moveTo(-34, -9.4); s.lineTo(1.6, -9.4); s.absarc(1.6, 0, 9.4, -PI / 2, PI / 2, false); s.lineTo(-34, 9.4); s.lineTo(-34, -9.4);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 22.5, bevelEnabled: true, bevelSize: .6, bevelThickness: .6, bevelSegments: 2 });
+  geo.translate(0, 0, -11.25); add(g, geo, mat.yellow(), 0, 0, 0, PI / 2, 0, 0);
+  box(g, 34, 23.9, .5, M("seam", 0xc99d10), -16, 0, 0);                         // 기어박스 이음매
+  for (const x of [-14, -28]) { cylY(g, 1.6, 23.8, M("hole", 0x050505), x, 0, 4.5, 12); }   // 관통 구멍 2
+  const can = cylX(g, 10, 25, mat.silver(), -46.5, 0, 0, 32); can.scale.set(1, 1, .76);   // 납작한 원통 모터
+  const end = cylX(g, 9.2, 1.6, M("endcap", 0x2b2b2b), -59.6, 0, 0, 28); end.scale.set(1, 1, .76);
+  for (const yy of [-4, 4]) { box(g, 1, 1.6, 4, mat.copper(), -60.8, yy, 4); }      // 모터 단자 2개
+  cylY(g, 2.7, 9, mat.white(), 0, side * 15.5, 0, 16);                                   // 축 (바퀴 쪽)
+  cylY(g, 2.7, 4, mat.white(), 0, -side * 13.2, 0, 16);
+  return g;
+}
+function lBracket(p, side) {          // 알루미늄 2mm L 브라켓: 세운 면이 모터 안쪽, 눕힌 면이 판 밑
+  const g = grp(p);
+  const y = side * (56 - 11.25 - 1);
+  box(g, 30, 2, 19, mat.alu(), -23, y, 23 + 9.5);
+  box(g, 30, 16, 2, mat.alu(), -23, side * (44.75 - 8), Z1 - 1);
+  for (const x of [-14, -28]) { cylY(g, 2.6, 1.6, mat.steel(), x, side * (56 + 12.2), WR + 4.5, 18); cylY(g, 1.5, 27, mat.steel(), x, side * 55, WR + 4.5, 10); hexNut(g, x, side * 42, WR + 4.5).rotation.set(0, 0, 0); }
+  for (const x of [-34, -12]) { screwHead(g, x, side * 36.75, Z1 - 2, -1); hexNut(g, x, side * 36.75, Z1 + 3 + 1.2); }
+  return g;
+}
+function wheel(p, side) {             // 65mm 고무바퀴: 트레드 타이어 + 노란 살 휠
+  const g = grp(p, 0, side * WY, WR);
+  const prof = [];
+  for (let i = 0; i <= 12; i++) { const a = -PI / 2 + PI * i / 12; prof.push(new THREE.Vector2(29.5 + 3 * Math.cos(a), 10 * Math.sin(a) * 1.3)); }
+  prof.unshift(new THREE.Vector2(25.5, -13)); prof.push(new THREE.Vector2(25.5, 13));
+  add(g, new THREE.LatheGeometry(prof, 64), mat.tire());
+  for (let i = 0; i < 40; i++) { const a = 2 * PI * i / 40; const b = add(g, new THREE.BoxGeometry(2.2, 9, 1), mat.tire(), 32.6 * Math.cos(a), (i % 2 ? 4.5 : -4.5), 32.6 * Math.sin(a)); b.rotation.y = -a; }
+  cylY(g, 25.8, 18, mat.yellow(), 0, 0, 0, 48).scale.set(1, 1, 1);
+  cylY(g, 22, 18.4, M("rimin", 0xd9a90c), 0, 0, 0, 48);
+  for (let i = 0; i < 6; i++) { const a = PI * i / 3; add(g, new THREE.BoxGeometry(3, 19, 40), mat.yellow(), 0, 0, 0, 0, a, 0); }
+  cylY(g, 6, 20, mat.yellow(), 0, 0, 0, 24);
+  box(g, 5.4, 20.6, 3.6, M("hole", 0x050505), 0, 0, 0);
+  return g;
+}
+function batteryHolder(p) {           // 18650 2구 직렬 홀더 (스위치 달림) + 셀 2개
+  const g = grp(p, -95, 0, Z1 + 3 + 1);
+  box(g, 77, 41, 2, mat.plastic(), 0, 0, 1);
+  box(g, 77, 1.6, 21, mat.plastic(), 0, 19.7, 10.5); box(g, 77, 1.6, 21, mat.plastic(), 0, -19.7, 10.5);
+  box(g, 1.6, 41, 21, mat.plastic(), 37.7, 0, 10.5); box(g, 1.6, 41, 21, mat.plastic(), -37.7, 0, 10.5);
+  box(g, 77, 1.2, 12, mat.plastic(), 0, 0, 7);
+  for (const s of [1, -1]) {
+    cylX(g, 9, 65, mat.cell(), -1.5 * s, s * 9.6, 11.5, 32);
+    cylX(g, 6, .6, mat.silver(), 31.4 * s, s * 9.6, 11.5, 24);
+    cylX(g, 3, 1.4, mat.silver(), 32.2 * s, s * 9.6, 11.5, 16);
+    for (let k = 0; k < 4; k++) add(g, new THREE.TorusGeometry(3.4, .45, 6, 16), mat.silver(), -s * (34 + k * .9), s * 9.6, 11.5, 0, PI / 2, 0);
+    box(g, .6, 8, 8, mat.silver(), 36.6 * s, s * 9.6, 11.5);
+  }
+  box(g, 10, 2.2, 5.5, mat.black(), 18, 21.6, 14); box(g, 3, 1, 2.6, mat.white(), 19.5, 22.9, 14);
+  box(g, 77, 41, 1, mat.tape(), 0, 0, -.5);
+  return g;
+}
+function l298n(p) {                    // 빨간 L298N 모듈
+  const g = grp(p, LX, 0, Z1 + 3 + 2.4);
+  const tex = pcbTex(43, 43, "#b51d1d", t => {
+    traces(t, 43, 43, "#cf3a32", 46, 3);
+    [[3, 3], [40, 3], [3, 40], [40, 40]].forEach(([x, y]) => ring(t, x, y, 1.9));
+    T(t, "L298N", 21.5, 31, 3.2); T(t, "OUT1", 39, 28, 1.5, { rot: PI / 2 }); T(t, "OUT2", 39, 22.5, 1.5, { rot: PI / 2 });
+    T(t, "OUT3", 4, 22.5, 1.5, { rot: PI / 2 }); T(t, "OUT4", 4, 28, 1.5, { rot: PI / 2 });
+    T(t, "12V", 7.5, 8.5, 1.4); T(t, "GND", 12.5, 8.5, 1.4); T(t, "5V", 17.6, 8.5, 1.4);
+    ["ENA", "IN1", "IN2", "IN3", "IN4", "ENB"].forEach((s, i) => T(t, s, 24.5 + i * 2.54, 6.6, .9, { rot: PI / 2 }));
+    T(t, "5V-EN", 12.5, 13.6, 1.1); T(t, "+5V", 30, 15, 1);
+  });
+  // 기판 좌표: 텍스처 u = 차 x (뒤→앞), v = 차 y (오른쪽→왼쪽) → 기판을 90° 돌려 뒤쪽 모서리에 단자·헤더
+  const b = pcb(g, 43, 43, 1.6, 0xb51d1d, tex, 0, 0, .8); b.rotation.z = -PI / 2;
+  const top = 1.6;
+  // 방열판 (앞쪽)
+  const hs = grp(g, 13, 0, top);
+  box(hs, 2.2, 23, 25, mat.heat(), -6.4, 0, 12.5);
+  for (let i = 0; i < 7; i++) box(hs, 13, 1.4, 25, mat.heat(), 0.6, -10.8 + i * 3.6, 12.5);
+  box(g, 3, 20, 12, mat.black(), 4.6, 0, top + 7);                                   // L298 칩
+  for (let i = 0; i < 15; i++) box(g, 2.4, .5, .4, mat.silver(), 2.6, -9 + i * 1.27, top + 1.2);
+  // 단자대 (파랑): 양옆 모터, 뒤 전원
+  const term = (n, cx, cy, rot) => {
+    const t = grp(g, cx, cy, top); t.rotation.z = rot;
+    box(t, n * 5.08, 7.5, 10, mat.blueTerm(), 0, 0, 5);
+    for (let i = 0; i < n; i++) { const x = (i - (n - 1) / 2) * 5.08;
+      cylZ(t, 1.6, .8, mat.silver(), x, -1, 10.3, 16); box(t, 2.6, .4, .3, M("slot", 0x333333), x, -1, 10.7);
+      box(t, 3.2, .4, 3.4, M("hole", 0x050505), x, 3.76, 4); }
+  };
+  term(2, 3, 17.75, PI); term(2, 3, -17.75, 0); term(3, -17.75, -9, -PI / 2);
+  // 6핀 제어 헤더 + 5V-EN 점퍼
+  const hd = grp(g, -19.5, 3, top); hd.rotation.z = PI / 2; maleHeader(hd, 6, 0, 0, 0);
+  maleHeader(grp(g, -11.5, -9, top), 2, 0, 0, 0, 2.54, 6); box(g, 5, 2.6, 6, mat.black(), -10.2, -9, top + 5.5);
+  cylZ(g, 3.15, 11, mat.cap(), -6.5, 12.5, top + 5.5, 24); cylZ(g, 3.15, 11, mat.cap(), -6.5, -14, top + 5.5, 24);
+  cylZ(g, 3.2, .3, mat.silver(), -6.5, 12.5, top + 11.1, 24); cylZ(g, 3.2, .3, mat.silver(), -6.5, -14, top + 11.1, 24);
+  box(g, 6.5, 6.5, 2.3, mat.black(), -12, 2, top + 1.15);                           // 78M05
+  box(g, 1.6, .8, .6, M("led_r", 0xff3030, { emissive: 0xff1010, emissiveIntensity: 1.2 }), -3, 9, top + .3);
+  for (const [x, y] of [[-18.5, -18.5], [18.5, -18.5], [-18.5, 18.5], [18.5, 18.5]]) { screwHead(g, x, y, top, 1); hexNut(g, x, y, -1.2); }
+  return g;
+}
+function mp1584(p) {
+  const g = grp(p, -35, 38, Z1 + 3 + 1);
+  const tex = pcbTex(22, 17, "#1c4fa8", t => {
+    traces(t, 22, 17, "#2c64c4", 10, 5);
+    T(t, "IN+", 3.5, 14, 1.2); T(t, "IN-", 3.5, 3, 1.2); T(t, "OUT+", 18.5, 14, 1.2); T(t, "OUT-", 18.5, 3, 1.2);
+    [[2, 12.3], [2, 4.7], [20, 12.3], [20, 4.7]].forEach(([x, y]) => ring(t, x, y, 1.1, "#e0c060"));
+  }, 24);
+  pcb(g, 22, 17, 1.2, 0x1c4fa8, tex, 0, 0, .6);
+  box(g, 5.5, 5.5, 3, M("ind", 0x2a2a2a, { roughness: .8 }), 2, 0, 1.2 + 1.5);
+  box(g, 3.2, 3.2, 2, M("trim", 0x2f64c8), -3.5, 4.5, 2.2); cylZ(g, 1, .5, mat.brass(), -3.5, 4.5, 3.3, 12);
+  box(g, 3, 2.5, 1, mat.black(), -4, -3, 1.7);
+  box(g, 22, 17, 1, mat.tape(), 0, 0, -.5);
+  return g;
+}
+function unoBoard(p, x = UNO0[0], y = UNO0[1], z = UNOZ, screws = true) {   // Arduino Uno R3 (USB 가 뒤)
+  const g = grp(p, x, y, z);
+  const tex = pcbTex(68.6, 53.3, "#00879a", t => {
+    traces(t, 68.6, 53.3, "#1a9fb0", 70, 11);
+    UNO_HOLES.forEach(([x, y]) => ring(t, x, y, 1.9));
+    T(t, "UNO", 44, 29, 8, { w: 700, f: '"IBM Plex Sans KR", sans-serif' });
+    T(t, "ARDUINO", 44, 22.5, 3.2, { w: 600 }); T(t, "DIGITAL (PWM~)", 42, 45.6, 1.6);
+    T(t, "POWER", 37, 7.2, 1.5); T(t, "ANALOG IN", 57.2, 7.2, 1.5);
+    const dl = ["AREF", "GND", "13", "12", "~11", "~10", "~9", "8"]; dl.forEach((s, i) => T(t, s, 23.9 + i * 2.54, 47.8, .9, { rot: PI / 2 }));
+    ["7", "~6", "~5", "4", "~3", "2", "TX1", "RX0"].forEach((s, i) => T(t, s, 45.7 + i * 2.54, 47.8, .9, { rot: PI / 2 }));
+    ["IOREF", "RESET", "3.3V", "5V", "GND", "GND", "VIN"].forEach((s, i) => T(t, s, 30.5 + i * 2.54, 5.6, .8, { rot: PI / 2 }));
+    ["A0", "A1", "A2", "A3", "A4", "A5"].forEach((s, i) => T(t, s, 50.8 + i * 2.54, 5.6, .9, { rot: PI / 2 }));
+    T(t, "ON", 61, 30, 1); T(t, "L", 26.5, 40.5, 1); T(t, "TX", 26.5, 37.5, 1); T(t, "RX", 26.5, 35.5, 1);
+    T(t, "RESET", 6.3, 45.5, 1); T(t, "ICSP", 63, 21.5, 1);
+  });
+  pcb(g, 68.6, 53.3, 1.6, 0x00879a, tex, 34.3, 26.65, .8);
+  const top = 1.6;
+  box(g, 16, 12, 10.9, mat.silver(), 1.8, 38, top + 5.45);                           // USB-B
+  box(g, .4, 8, 7, M("hole", 0x050505), -6.3, 38, top + 5.45);
+  box(g, 13.5, 9, 11, mat.black(), 4.95, 7.75, top + 5.5);                           // DC 잭
+  cylX(g, 3.2, .4, M("hole", 0x050505), -1.9, 7.75, top + 6, 20);
+  femaleHeader(g, 10, 18.8, 51.0, top); femaleHeader(g, 8, 45.7, 51.0, top);
+  femaleHeader(g, 8, 27.9 - 2.54, 2.5, top); femaleHeader(g, 6, 50.8, 2.5, top);
+  // ATmega328P DIP-28 + 소켓
+  box(g, 37, 9, 1.4, mat.black(), 47.5, 13, top + .7);
+  const chip = box(g, 35.6, 7.4, 3.4, M("ic", 0x161616, { roughness: .4 }), 47.5, 13, top + 3.1);
+  cylZ(g, 1.1, .2, M("dot", 0x2c2c2c), 31.5, 13, top + 4.85, 16);
+  for (let i = 0; i < 14; i++) for (const s of [1, -1]) box(g, .5, 1.4, 2.2, mat.silver(), 31.4 + i * 2.54, 13 + s * 4.1, top + 2.3);
+  box(g, 7, 7, 1, mat.black(), 19.5, 34, top + .5, PI / 4);                          // ATmega16U2
+  box(g, 6, 6, 3.5, mat.silver(), 6.3, 49.6, top + 1.75); cylZ(g, 1.7, 1.2, M("btn", 0x1a1a1a), 6.3, 49.6, top + 4.1, 16);
+  const hc = cylZ(g, 1.8, 3.5, mat.silver(), 24, 18.8, top + 1.75, 20); hc.scale.set(2.2, 1, 1);
+  cylZ(g, 3.15, 7, mat.cap(), 17.5, 5.5, top + 3.5, 20); cylZ(g, 3.15, 7, mat.cap(), 23.4, 5.5, top + 3.5, 20);
+  box(g, 6.5, 3.5, 1.6, mat.black(), 8, 18, top + .8);
+  const icsp = grp(g, 63.8, 25.7, top); maleHeader(icsp, 3, 0, 0, 0, 2.54, 6); maleHeader(icsp, 3, 0, 2.54, 0, 2.54, 6);
+  box(g, 1.6, .8, .5, M("led_g", 0x30ff60, { emissive: 0x20ff40, emissiveIntensity: 1.4 }), 61, 32, top + .25);
+  if (screws) for (const [x, y] of UNO_HOLES) { screwHead(g, x, y, top, 1); hexNut(g, x, y, -1.2); hexNut(g, x, y, -3.6); }
+  return g;
+}
+
+// ESP32-CAM: 렌즈 중심 = (60, 0, 150), 광축 30° 아래 (sim.py)
+const TH = 30 * PI / 180, U = V3(Math.cos(TH), 0, -Math.sin(TH)), VUP = V3(Math.sin(TH), 0, Math.cos(TH)), WY_ = V3(0, 1, 0);
+const LENS = V3(60, 0, 150), LENS_LOCAL = V3(0, 10, 9);
+const camBasis = new THREE.Matrix4().makeBasis(WY_, VUP, U);                     // 로컬 x→차 y, y→위쪽(VUP), z→광축
+const CAM_C = LENS.clone().sub(LENS_LOCAL.clone().applyMatrix4(camBasis));
+const camW = l => l.clone().applyMatrix4(camBasis).add(CAM_C);                    // 카메라 로컬 → 차 좌표
+const ESP_PINS = { "5V": [-12.2, 0], GND: [-12.2, 1], IO14: [-12.2, 5], IO15: [-12.2, 4] };
+const espPin = name => { const [x, k] = ESP_PINS[name]; return camW(V3(x, -18.9 + k * 2.54, -16.5)); };
+
+function espCam(p) {
+  const g = grp(p); g.matrixAutoUpdate = false;
+  g.matrix.copy(camBasis).setPosition(CAM_C);
+  const tex = pcbTex(27, 40.5, "#191919", t => {
+    t.strokeStyle = "#c9a33a"; t.lineWidth = .5; t.beginPath(); let x = 4;
+    t.moveTo(x, 37); for (let i = 0; i < 6; i++) { t.lineTo(x, 39); x += 1.6; t.lineTo(x, 39); t.lineTo(x, 35.5); x += 1.6; t.lineTo(x, 35.5); } t.stroke();
+    T(t, "ESP32-CAM", 13.5, 2.5, 2); T(t, "AI-Thinker", 13.5, 5, 1.2, { c: "#9a9a9a" });
+    T(t, "5V", 1.3, 1.6, .9); T(t, "3V3", 25.7, 1.6, .9);
+  }, 16);
+  pcb(g, 27, 40.5, 1, 0x191919, tex, 0, 0, 0);
+  box(g, 17, 18, 2.6, mat.silver(), 0, 3, 1.8);                                     // ESP32-S 실드
+  box(g, 9, 9, 4, M("cammod", 0x111111), 0, LENS_LOCAL.y, 3.1 + 2);                // OV2640 모듈
+  cylZ(g, 4.2, 4, M("lens", 0x0d0d0d, { roughness: .3 }), 0, LENS_LOCAL.y, 7.1 + 1.5, 32);
+  add(g, new THREE.SphereGeometry(3.6, 32, 16, 0, 2 * PI, 0, PI / 2), mat.glass(), 0, LENS_LOCAL.y, 9.4, PI / 2, 0, 0);
+  box(g, 6, 9, .3, M("fpc", 0xb36b16, { roughness: .6 }), 0, -1, 1.5 + 2.65);    // 카메라 FPC
+  box(g, 3, 3, 1, M("flash", 0xfafafa, { emissive: 0x333333 }), -8.5, -14, 1);     // 플래시 LED
+  box(g, 15, 14, 2, mat.silver(), 0, 10, -1.5);                                     // microSD (뒷면)
+  for (const x of [-12.2, 12.2]) { const h = grp(g, x, -18.9, -.5); h.rotation.z = PI / 2; maleHeader(h, 8, 0, 0, 0, 2.54, 8.5, -1); }
+  return g;
+}
+function camMount(p) {                 // 카메라판 + 암 헤더 + 30° 쐐기 + 기둥 (포맥스)
+  const g = grp(p);
+  const plateG = grp(g); plateG.matrixAutoUpdate = false; plateG.matrix.copy(camBasis).setPosition(CAM_C);
+  box(plateG, 27, 26, 3, mat.foamex(), 0, -7, -13);
+  for (const x of [-12.2, 12.2]) femaleHeader(plateG, 8, x, -18.9, -11.5, "y").position.z = 0;
+  const bb = camW(V3(0, -20, -14.5)), tb = camW(V3(0, 6, -14.5));                 // 판 뒤 아래·위 모서리
+  const xf = bb.x;                                                                   // 기둥 앞면
+  box(g, 6, 20, tb.z - (Z1 + 3), mat.foamex(), xf - 3, 0, (Z1 + 3 + tb.z) / 2);
+  const s = new THREE.Shape(); s.moveTo(xf, bb.z); s.lineTo(tb.x, tb.z); s.lineTo(xf, tb.z); s.lineTo(xf, bb.z);
+  const wg = new THREE.ExtrudeGeometry(s, { depth: 16, bevelEnabled: false }); wg.translate(0, 0, -8);
+  add(g, wg, mat.foamex(), 0, 0, 0, PI / 2, 0, 0);
+  const s2 = new THREE.Shape(); s2.moveTo(0, 0); s2.lineTo(-22, 0); s2.lineTo(0, 26); s2.lineTo(0, 0);
+  for (const y of [7, -7]) { const gg = new THREE.ExtrudeGeometry(s2, { depth: 3, bevelEnabled: false }); gg.translate(0, 0, -1.5);
+    add(g, gg, mat.foamex(), xf - 6, y, Z1 + 3, PI / 2, 0, 0); }
+  return { g, xf, top: tb.z };
+}
+function led5(p, x, y, z, color) {     // 5mm LED: 몸통 + 돔 + 테두리 + 다리
+  const g = grp(p, x, y, z);
+  const m = new THREE.MeshStandardMaterial({ color, roughness: .2, transparent: true, opacity: .9, emissive: color, emissiveIntensity: 0 });
+  add(g, new THREE.CylinderGeometry(2.9, 2.9, 1, 24), m, 0, 0, .5, PI / 2, 0, 0);
+  add(g, new THREE.CylinderGeometry(2.5, 2.5, 5, 24), m, 0, 0, 3.5, PI / 2, 0, 0);
+  add(g, new THREE.SphereGeometry(2.5, 24, 12, 0, 2 * PI, 0, PI / 2), m, 0, 0, 6, PI / 2, 0, 0);
+  box(g, .5, .5, 10, mat.silver(), -1.27, 0, -4); box(g, .5, .5, 8, mat.silver(), 1.27, 0, -3);
+  g.userData.led = m; return g;
+}
+
+// ───────────────────────── 장면
+const canvas = document.getElementById("c"), stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x15191c);
+const camera = new THREE.PerspectiveCamera(35, 1, 1, 6000);
+const controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2622, .75));
+const sun = new THREE.DirectionalLight(0xffffff, 1.15); sun.position.set(300, 600, 250); sun.castShadow = true;
+Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, near: 10, far: 1600 });
+sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0004; scene.add(sun);
+const fill = new THREE.DirectionalLight(0xbfd4ff, .35); fill.position.set(-300, 200, -300); scene.add(fill);
+
+// 커팅 매트 (10mm 칸, 50mm 굵은 선)
+const matTex = (() => { const n = 1200, c = document.createElement("canvas"); c.width = c.height = n; const g = c.getContext("2d");
+  g.fillStyle = "#2e6b4f"; g.fillRect(0, 0, n, n);
+  for (let i = 0; i <= 120; i++) { const p = i * 10; g.strokeStyle = i % 5 ? "rgba(220,240,225,.18)" : "rgba(235,250,240,.42)"; g.lineWidth = i % 5 ? 1 : 2;
+    g.beginPath(); g.moveTo(p, 0); g.lineTo(p, n); g.stroke(); g.beginPath(); g.moveTo(0, p); g.lineTo(n, p); g.stroke(); }
+  g.fillStyle = "rgba(235,250,240,.6)"; g.font = "600 14px 'IBM Plex Mono', monospace";
+  for (let i = 0; i <= 12; i++) { g.fillText(String(i * 10), i * 100 + 4, 16); g.fillText(String(i * 10), 4, i * 100 + 16); }
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 8; t.encoding = THREE.sRGBEncoding; return t; })();
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), new THREE.MeshStandardMaterial({ map: matTex, roughness: .9 }));
+ground.rotation.x = -PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+// 자동차 좌표 → three 좌표: x→x, y→-z, z→y
+const car = new THREE.Group(); car.rotation.x = -PI / 2; scene.add(car);
+const sig = new THREE.Group(); sig.rotation.x = -PI / 2; sig.visible = false; scene.add(sig);
+
+const wiresG = grp(car);
+const ledObjs = {};
+function buildCar() {
+  const bottomHoles = [...STANDOFFS.map(([x, y]) => [x, y, 3.2]), ...LEDS.map(([x, y]) => [x, y, 5]),
+    [-62, 40, 8], [-62, -40, 8], ...[[-18.5, -18.5], [18.5, -18.5], [-18.5, 18.5], [18.5, 18.5]].map(([x, y]) => [LX + x, y, 3.2]),
+    [-125, 8, 3.2], [-125, -8, 3.2], [-34, 36.75, 3.2], [-12, 36.75, 3.2], [-34, -36.75, 3.2], [-12, -36.75, 3.2]];
+  const pb = plate(car, -R, F, -W / 2, W / 2, bottomHoles, Z1);
+  const upHoles = [...STANDOFFS.map(([x, y]) => [x, y, 3.2]), ...UNO_HOLES.map(([x, y]) => [UNO0[0] + x, UNO0[1] + y, 3.2]), [-20, 9, 12]];
+  const pu = plate(car, -145, 0, -50, 50, upHoles, Z2);
+  part({ no: "16", name: "아래판", spec: "포맥스 3T · 217.5×135 · 밑면 높이 42" }, [[pb, V3(0, 0, 0)]]);
+  part({ no: "16", name: "윗판", spec: "포맥스 3T · 145×100 · 서포트 30mm 위" }, [[pu, V3(0, 0, 90)]]);
+  const so = grp(car);
+  STANDOFFS.forEach(([x, y]) => { add(so, new THREE.CylinderGeometry(3.2, 3.2, 30, 6), mat.brass(), x, y, Z1 + 3 + 15, PI / 2, 0, 0);
+    screwHead(so, x, y, Z2 + 3, 1); screwHead(so, x, y, Z1, -1); });
+  part({ no: "15", name: "황동 서포트 ×4", spec: "M3×30 육각 · 위아래 나사" }, [[so, V3(0, 0, 45)]]);
+  for (const s of [1, -1]) {
+    const side = s > 0 ? "왼쪽" : "오른쪽";
+    part({ no: "1", name: `TT 모터 (${side})`, spec: "3~6V · 기어비 1:48 · 70×22.5×18.8" }, [[ttMotor(car, s), V3(0, s * 30, -35)]]);
+    part({ no: "17", name: `L 브라켓 (${side})`, spec: "알루미늄 2mm · M3 25mm 나사 2개로 모터 고정" }, [[lBracket(car, s), V3(0, s * 12, -18)]]);
+    part({ no: "2", name: `바퀴 (${side})`, spec: "Ø65 고무 · 폭 26 · 바퀴 중심 y ±82.5" }, [[wheel(car, s), V3(0, s * 70, -35)]]);
+  }
+  const cs = grp(car, -125, 0, 0);
+  add(cs, new THREE.SphereGeometry(5.5, 32, 16), mat.silver(), 0, 0, 5.5);
+  cylZ(cs, 7.2, 7, mat.black(), 0, 0, 8.5, 28); box(cs, 26, 9, 2, mat.black(), 0, 0, 11);
+  for (const y of [8, -8]) { add(cs, new THREE.CylinderGeometry(3.2, 3.2, 30, 6), mat.brass(), 0, y, 27, PI / 2, 0, 0); }
+  part({ no: "3", name: "볼캐스터 + 서포트 2", spec: "볼 Ø11 · 서포트 30mm 로 판 밑면 42mm" }, [[cs, V3(0, 0, -40)]]);
+  part({ no: "7·8", name: "18650 홀더 + 배터리 2", spec: "직렬 7.4V · 77×41×21 · 양면테이프" }, [[batteryHolder(car), V3(0, 0, 40)]]);
+  part({ no: "4", name: "L298N 모터 드라이버", spec: "43×43 · 방열판 앞 · 단자·헤더 뒤" }, [[l298n(car), V3(0, 0, 40)]]);
+  part({ no: "10", name: "MP1584 5V 강압", spec: "22×17 · 배터리 7.4V → 5.0V (ESP32-CAM)" }, [[mp1584(car), V3(0, 25, 40)]]);
+  part({ no: "키트", name: "Arduino Uno", spec: "68.6×53.3 · USB 뒤 · M3 나사 + 너트 2개" }, [[unoBoard(car), V3(0, 0, 140)]]);
+  const esp = espCam(car), mount = camMount(car);
+  part({ no: "5·6", name: "ESP32-CAM + 160° 렌즈", spec: "27×40.5 · 렌즈 높이 150 · 30° 아래" }, [[esp, V3(40, 0, 70)]]);
+  part({ no: "16", name: "카메라 기둥·쐐기·카메라판", spec: `포맥스 · 기둥 ${(mount.top - Z1 - 3).toFixed(0)}mm · 쐐기 30°` }, [[mount.g, V3(20, 0, 40)]]);
+  const lg = grp(car);
+  LEDS.forEach(([x, y]) => { const l = led5(lg, x, y, Z1 + 3, 0xffc21a); ledObjs[(y > 0 ? "L" : "R") + (x > 0 ? "f" : "r")] = l;
+    resistor(lg, x + (x > 0 ? -12 : 12), y - Math.sign(y) * 6, Z1 + 3 + 1.4); });
+  part({ no: "키트", name: "방향지시등 LED ×4 + 220Ω", spec: "노랑 5mm · D2 왼쪽 · D3 오른쪽" }, [[lg, V3(0, 0, 25)]]);
+  const dv = grp(car);
+  resistor(dv, -28, -30, Z2 + 3 + 1.4, PI / 2); resistor(dv, -20, -30, Z2 + 3 + 1.4, PI / 2); resistor(dv, -12, -30, Z2 + 3 + 1.4, PI / 2, ["#6b3a1f", "#111", "#e07a10", "#c9a33a"]);
+  dv.children.forEach((r, i) => { if (i < 2) r.children[0].material = resistor(new THREE.Group(), 0, 0, 0, 0, ["#6b3a1f", "#111", "#e07a10", "#c9a33a"]).children[0].material; });
+  part({ no: "키트", name: "분압 저항 10kΩ ×3", spec: "Uno D11(5V) → ESP32 GPIO15(3.3V)" }, [[dv, V3(0, 0, 140)]]);
+  buildWires(mount);
+  part({ no: "키트", name: "전선", spec: "보유 점퍼선 · 빨강 +7.4V · 검정 GND · 주황 5V" }, [[wiresG, V3(0, 0, 0)]]);
+}
+function buildWires(mount) {
+  const top = Z1 + 3 + 2.4 + 1.6, hdrTop = top + 2.5 + 12;
+  const L = (x, y, z) => [LX + x, y, z];
+  const RED = 0xd8312b, BLK = 0x1c1c1c, ORG = 0xf08a1c;
+  const pt = v => [v.x, v.y, v.z];
+  // 배터리 → L298N 12V·GND (단자대 뒤쪽 구멍)
+  wire(wiresG, [[-56, 4, 60], [-50, 4, 52], [-38, -8, 49], L(-24, -14.08, top + 4), L(-21.6, -14.08, top + 4)], RED);
+  wire(wiresG, [[-56, -4, 60], [-50, -6, 51], [-36, -10, 49.5], L(-24, -9, top + 4), L(-21.6, -9, top + 4)], BLK);
+  // L298N 12V·GND → Uno VIN·GND (윗판 배선 구멍)
+  const vin = unoPin(PPIN.VIN, false), ugnd = unoPin(PPIN.GND2, false);
+  wire(wiresG, [L(-21.6, -14.08, top + 4.2), L(-27, -13, top + 9), [-26, 4, 68], [-20, 7, 78], [-26, 0, 92], [vin.x + 4, vin.y + 2, vin.z + 14], [vin.x, vin.y, vin.z + 10], [vin.x, vin.y, vin.z]], RED);
+  wire(wiresG, [L(-21.6, -9, top + 4.2), L(-27, -8, top + 10), [-24, 6, 68], [-20, 10, 78], [-28, 2, 94], [ugnd.x + 4, ugnd.y + 2, ugnd.z + 14], [ugnd.x, ugnd.y, ugnd.z + 10], [ugnd.x, ugnd.y, ugnd.z]], BLK);
+  // 12V·GND → MP1584 IN
+  wire(wiresG, [L(-21.6, -14.08, top + 3.8), L(-26, -12, top + 2), [-40, 12, 48], [-46, 30, 48], [-44, 41.4, 47.6]], RED);
+  wire(wiresG, [L(-21.6, -9, top + 3.8), L(-25, -6, top + 2), [-38, 14, 48], [-47, 28, 48], [-44, 34.6, 47.6]], BLK);
+  // MP1584 OUT → ESP32-CAM 5V·GND (기둥 뒤로 올라감)
+  for (const [name, y0, c] of [["5V", 41.4, ORG], ["GND", 34.6, BLK]]) {
+    const e = espPin(name), xb = mount.xf - 7.5;
+    wire(wiresG, [[-26, y0, 47.6], [-14, y0 - 4, 48], [xb - 6, 14, 49], [xb, 11 + (c === ORG ? 1.5 : 0), 60], [xb, 11 + (c === ORG ? 1.5 : 0), e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c);
+  }
+  // 모터 → L298N OUT (Ø8 구멍으로 올라옴)
+  for (const s of [1, -1]) {
+    wire(wiresG, [[-60.8, s * 52, WR + 4], [-64, s * 46, 38], [-62, s * 40, 44], [-62, s * 40, 50], [-30, s * 30, 52], L(.46, s * 24.5, top + 4), L(.46, s * 21.6, top + 4)], s > 0 ? RED : BLK);
+    wire(wiresG, [[-60.8, s * 60, WR + 4], [-66, s * 48, 38], [-62.5, s * 41, 44], [-62.5, s * 41, 51], [-28, s * 32, 53], L(5.54, s * 24.5, top + 4), L(5.54, s * 21.6, top + 4)], s > 0 ? BLK : RED);
+  }
+  // Uno D5 D7 D8 D9 D10 D6 → ENA IN1 IN2 IN3 IN4 ENB (점퍼선)
+  const jc = [0x8e44ad, 0x27ae60, 0x8d5524, 0x2ecc71, 0xa0522d, 0x9b59b6];
+  [5, 7, 8, 9, 10, 6].forEach((d, i) => {
+    const pin = unoPin(DPIN[d], true), hy = 3 + i * 2.54, hx = LX - 19.5;
+    dupont(wiresG, pin.x, pin.y, pin.z - 6); dupont(wiresG, hx, hy, top + 2.5);
+    wire(wiresG, [[pin.x, pin.y, pin.z + 6], [pin.x, pin.y, pin.z + 12], [pin.x + 18, 18 - i, pin.z + 10], [-21, 7 + i * .7, 82], [-20.5, 7 + i * .7, 77], [hx + 1, hy, hdrTop + 8], [hx, hy, hdrTop]], jc[i], .6);
+  });
+  // ESP32 GPIO14 → D12, D11 → 분압 → GPIO15
+  for (const [io, d, c, rx] of [["IO14", 12, 0xe377c2, 0], ["IO15", 11, 0x9aa0a6, 1]]) {
+    const pin = unoPin(DPIN[d], true), e = espPin(io), xb = mount.xf - 8.5;
+    dupont(wiresG, pin.x, pin.y, pin.z - 6);
+    const via = rx ? [[-30, -20, Z2 + 6], [-12, -24, Z2 + 6]] : [];
+    wire(wiresG, [[pin.x, pin.y, pin.z + 6], [pin.x, pin.y, pin.z + 12], [pin.x + 20, pin.y - 6, pin.z + 6], ...via, [-4, rx ? -8 : 6, Z2 + 8], [xb, rx ? -6 : 7, Z2 + 14], [xb, rx ? -6 : 7, e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c, .6);
+  }
+  // 방향지시등: 노랑 = D2/D3, 검정 = GND
+  for (const [k, x, y] of [["Lf", 58, 58], ["Lr", -145, 58], ["Rf", 58, -58], ["Rr", -145, -58]]) {
+    const pin = unoPin(DPIN[y > 0 ? 2 : 3], true), g = unoPin(DPIN.GND, true), sx = Math.sign(x), sy = Math.sign(y);
+    const r0 = [x - sx * 18.5, y - sy * 6, Z1 + 4.4];
+    wire(wiresG, [r0, [r0[0] - sx * 6, y - sy * 10, Z1 + 4.5], [-60, sy * 47, Z1 + 5], [-60, sy * 47, Z2 - 4], [pin.x + 10, sy * 46, Z2 + 8], [pin.x, pin.y + 1, pin.z + 16], [pin.x, pin.y, pin.z + 6]], 0xe8b10f, .55);
+    wire(wiresG, [[x + 1.27, y, Z1 + 3.5], [x - sx * 4, y - sy * 2, Z1 + 4.5], [-66, sy * 50, Z1 + 5], [-66, sy * 50, Z2 - 4], [g.x + 10, sy * 48, Z2 + 8], [g.x, g.y + 1, g.z + 16], [g.x, g.y, g.z + 6]], BLK, .55);
+  }
+}
+
+// ───────────────────────── 신호등 (road_signal.ino)
+const sigLamps = [];
+function buildSignal() {
+  const base = grp(sig);
+  box(base, 260, 200, 3, M("board", 0x111214, { roughness: .9 }), 60, 0, 1.5);
+  part({ no: "22", name: "바닥 판 (검정 폼보드)", spec: "3T · 코스 조각 위", tab: "sig" }, [[base, V3(0, 0, 0)]]);
+  const pole = grp(sig, 0, 0, 3);
+  box(pole, 15, 15, 330, M("poleb", 0x1a1b1d, { roughness: .8 }), 0, 0, 165);
+  box(pole, 15, 260, 15, M("poleb", 0x1a1b1d), 0, 130 - 7.5, 330 - 7.5);
+  for (const y of [8, -8]) { const s = new THREE.Shape(); s.moveTo(0, 0); s.lineTo(40, 0); s.lineTo(0, 40); s.lineTo(0, 0);
+    const gg = new THREE.ExtrudeGeometry(s, { depth: 3, bevelEnabled: false }); gg.translate(0, 0, -1.5); add(pole, gg, M("poleb", 0x1a1b1d), 7.5, y, 0, PI / 2, 0, 0); }
+  part({ no: "22", name: "기둥·팔", spec: "검정 폼보드 6cm 띠를 접은 15×15 사각 · 높이 330 · 팔 260", tab: "sig" }, [[pole, V3(0, 0, 0)]]);
+  const head = grp(sig, -10, 260 - 28 * 1.5 - 30, 303);
+  box(head, 20, 136, 32, M("headb", 0x0d0d0e, { roughness: .7 }), 0, 0, 0);
+  box(head, 6, 2, 12, M("poleb", 0x1a1b1d), 4, 0, 22);
+  const cols = [0xff2a1f, 0xffc21a, 0x23d160, 0x23d160];
+  // 보는 사람(앞 = -x) 기준 왼쪽부터: 왼쪽 = 차 쪽에서 볼 때 +y... 앞면이 -x 를 보므로 보는 사람의 왼쪽 = -y
+  cols.forEach((c, j) => {
+    const y = (j - 1.5) * 28, lg = grp(head, -10, y, 0);
+    const m = new THREE.MeshStandardMaterial({ color: c, roughness: .2, transparent: true, opacity: .92, emissive: c, emissiveIntensity: 0 });
+    add(lg, new THREE.CylinderGeometry(5, 5, 8.6, 28), m, -1, 0, 0, 0, 0, PI / 2);
+    add(lg, new THREE.SphereGeometry(5, 24, 12, 0, 2 * PI, 0, PI / 2), m, -5.3, 0, 0, 0, 0, PI / 2);
+    add(lg, new THREE.CylinderGeometry(5.6, 5.6, 1, 28), m, 3.6, 0, 0, 0, 0, PI / 2);
+    if (j === 2) { const ar = pcbTex(12, 12, "#0a0a0a", t => { t.fillStyle = "#000"; t.globalCompositeOperation = "destination-out";
+        t.beginPath(); t.moveTo(2, 6); t.lineTo(6, 10); t.lineTo(6, 7.4); t.lineTo(10.5, 7.4); t.lineTo(10.5, 4.6); t.lineTo(6, 4.6); t.lineTo(6, 2); t.closePath(); t.fill(); }, 30);
+      const am = new THREE.MeshStandardMaterial({ map: ar, transparent: true, roughness: .8 });
+      add(lg, new THREE.PlaneGeometry(12, 12), am, -10.6, 0, 0, 0, -PI / 2, PI / 2).scale.x = -1; }
+    sigLamps.push(m);
+  });
+  part({ no: "11–13", name: "등 머리 + 10mm LED 4개", spec: "136×32×20 · 빨강·노랑·화살표·초록 · 28 간격", tab: "sig" }, [[head, V3(-40, 0, 0)]]);
+  // Nano + 브레드보드 + 저항
+  const bb = grp(sig, 80, -40, 3);
+  const bbt = pcbTex(82, 55, "#f3f1ea", t => { t.fillStyle = "#cfcbc0";
+    for (let i = 0; i < 30; i++) for (let j = 0; j < 10; j++) t.fillRect(4 + i * 2.54, 8 + j * 2.54 + (j > 4 ? 3.6 : 0), 1, 1);
+    t.fillStyle = "#d33"; t.fillRect(3, 50.5, 76, .4); t.fillStyle = "#36c"; t.fillRect(3, 4, 76, .4); }, 12);
+  pcb(bb, 82, 55, 9.5, 0xf3f1ea, bbt, 0, 0, 4.75);
+  part({ no: "키트", name: "브레드보드 (키트)", spec: "220Ω 4개 꽂는 곳", tab: "sig" }, [[bb, V3(0, 0, 40)]]);
+  const u2 = unoBoard(sig, 150, -75, 3 + 1, false);
+  part({ no: "보유", name: "Arduino Uno (남는 보드)", spec: "D2~D9 → LED · USB 휴대폰 충전기 5V", tab: "sig" }, [[u2, V3(0, 0, 40)]]);
+  const rw = grp(sig);
+  [0, 1, 2, 3].forEach(i => resistor(rw, 75 + i * 5.08, -22, 3 + 9.5 + 1.4, PI / 2));
+  const wc = [0xff2a1f, 0xffc21a, 0x23d160, 0x5fe08a];
+  wc.forEach((c, i) => { const px = 150 + DPIN[2 + i], py = -24, pz = 3 + 1 + 1.6 + 8.5;      // Uno D2~D5 → 저항 (점퍼선)
+    dupont(rw, px, py, pz - 6); wire(rw, [[px, py, pz + 6], [px, py, pz + 16], [(px + 75 + i * 5.08) / 2, -27, pz + 14], [75 + i * 5.08, -30, 16], [75 + i * 5.08, -29.5, 13]], c, .6); });
+  { const gx = 150 + DPIN.GND; dupont(rw, gx, -24, 8.1); wire(rw, [[gx, -24, 20.1], [gx, -24, 30], [125, -50, 24], [112, -62, 14]], 0x1c1c1c, .6); }
+  wc.forEach((c, i) => wire(rw, [[75 + i * 5.08, -15, 15], [60 - i * 2, -6, 18], [14 - i * 2, 6, 20], [10, 6 + i * 2, 120], [10, 6 + i * 2, 323], [10, 40 + i * 2, 336], [10, 160 - i * 6, 336], [-2, 205 - i * 10, 320], head.position.toArray().map((v, k) => v + [8, (i - 1.5) * 28, 0][k])], c, .7));
+  wire(rw, [[110, -60, 15], [20, -6, 18], [7, 9, 120], [7, 9, 323], [7, 40, 338], [7, 170, 338], [-2, 220, 318], [-2, 200, 306]], 0x1c1c1c, .7);
+  wire(rw, [[148, -37, 11], [140, -10, 4], [60, 60, 2], [-140, 120, 2]], 0x9a9a9a, 1.6);
+  part({ no: "14", name: "220Ω ×4 + 전선 5가닥", spec: "신호 4 + GND 1 · 기둥 뒤로 올림", tab: "sig" }, [[rw, V3(0, 0, 0)]]);
+}
+
+// ───────────────────────── 목록 · 강조 · 분해
+function finishParts() {
+  parts.forEach(p => p.objs.forEach(([o]) => { o.userData.base = o.matrixAutoUpdate ? o.position.clone() : null;
+    o.userData.baseM = o.matrixAutoUpdate ? null : o.matrix.clone();
+    o.traverse(m => { if (m.isMesh) { m.material = Array.isArray(m.material) ? m.material.map(x => x.clone()) : m.material.clone(); m.userData.part = p; p.meshes.push(m); } }); }));
+  Object.values(ledObjs).forEach(l => l.traverse(m => { if (m.isMesh && m.material.emissive && m.material.transparent) l.userData.led = m.material; }));
+  // 클론 뒤 LED 재질 다시 연결
+  Object.values(ledObjs).forEach(l => { l.userData.leds = []; l.traverse(m => { if (m.isMesh && m.material.transparent) l.userData.leds.push(m.material); }); });
+  sigLamps.length = 0;
+  parts.filter(p => p.name.startsWith("등 머리")).forEach(p => p.objs[0][0].children.slice(2).forEach(lg => {
+    const m = lg.children[0].material; lg.children.slice(0, 3).forEach(c => c.material = m); sigLamps.push(m); }));
+}
+let selected = null, tab = "car";
+function renderList() {
+  const el = document.getElementById("parts"); el.innerHTML = "";
+  parts.filter(p => (p.tab || "car") === tab).forEach(p => {
+    const d = document.createElement("div"); d.className = "part" + (p === selected ? " sel" : ""); d.setAttribute("role", "listitem"); d.tabIndex = 0;
+    d.innerHTML = `<span class="no${/^\d/.test(p.no) ? "" : " kit"}">${p.no}</span><span class="pn">${p.name}</span><span class="ps">${p.spec}</span>`;
+    d.onclick = () => select(p === selected ? null : p); d.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); d.onclick(); } };
+    el.appendChild(d);
+  });
+}
+function setOpacity(m, o) { (Array.isArray(m.material) ? m.material : [m.material]).forEach(x => {
+  if (x.userData.op === undefined) { x.userData.op = x.opacity; x.userData.tr = x.transparent; }
+  x.transparent = o < 1 || x.userData.tr; x.opacity = o < 1 ? Math.min(o, x.userData.op) : x.userData.op; x.depthWrite = o >= 1; x.needsUpdate = true; }); }
+function select(p) {
+  selected = p;
+  parts.forEach(q => q.meshes.forEach(m => setOpacity(m, !p || q === p ? 1 : .07)));
+  if (!p) applyGlass();
+  if (p) { const b = new THREE.Box3(); p.meshes.forEach(m => b.expandByObject(m)); const c = b.getCenter(V3()), s = b.getSize(V3()).length();
+    flyTo(c, Math.max(s * 1.6, 90)); }
+  renderList();
+}
+let glass = false;
+function applyGlass() { if (selected) return; parts.filter(p => p.name.endsWith("판") && p.no === "18").forEach(p => p.meshes.forEach(m => setOpacity(m, glass ? .3 : 1))); }
+function setExplode(t) {
+  parts.forEach(p => p.objs.forEach(([o, v]) => {
+    if (o.userData.base) o.position.copy(o.userData.base).addScaledVector(v, t);
+    else { o.matrix.copy(o.userData.baseM); const e = o.matrix.elements; e[12] += v.x * t; e[13] += v.y * t; e[14] += v.z * t; }
+  }));
+  wiresG.visible = document.getElementById("tWires").getAttribute("aria-pressed") === "true" && t < .01;
+}
+
+// 카메라 이동
+let fly = null;
+function flyTo(target, dist, dir) {
+  const d = dir || camera.position.clone().sub(controls.target).normalize();
+  fly = { t0: performance.now(), p0: camera.position.clone(), q0: controls.target.clone(), p1: target.clone().addScaledVector(d, dist), q1: target.clone() };
+}
+const carCenter = () => V3(-40, 70, 0);
+const VIEWS = { iso: V3(1, .8, 1.1), front: V3(1, .25, 0), side: V3(0, .25, 1), top: V3(0, 1, .0001), under: V3(.3, -.6, .5) };
+function view(name) { flyTo(tab === "car" ? carCenter() : V3(30, 170, -100), tab === "car" ? 520 : 800, VIEWS[name].clone().normalize()); }
+
+// 마우스 위 부품 이름
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), tip = document.getElementById("tip");
+let hovered = null;
+canvas.addEventListener("pointermove", e => {
+  const r = canvas.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const pool = parts.filter(p => (p.tab || "car") === tab && (!selected || p === selected)).flatMap(p => p.meshes).filter(m => m.visible && m.parent.visible);
+  const hit = ray.intersectObjects(pool, false)[0];
+  const p = hit && hit.object.userData.part;
+  if (p) { tip.hidden = false; tip.innerHTML = `<b>${p.name}</b><span>주문 ${p.no} · ${p.spec}</span>`;
+    tip.style.left = Math.min(e.clientX - r.left + 14, r.width - 270) + "px"; tip.style.top = (e.clientY - r.top + 14) + "px"; } else tip.hidden = true;
+  if (hovered !== p) { if (hovered) hovered.meshes.forEach(m => [].concat(m.material).forEach(x => x.emissive && !x.userData.keepE && x.emissive.setHex(0)));
+    if (p) p.meshes.forEach(m => [].concat(m.material).forEach(x => { if (x.emissive && x.emissive.getHex() === 0) x.emissive.setHex(0x1d2a24); }));
+    hovered = p; }
+});
+canvas.addEventListener("pointerleave", () => tip.hidden = true);
+let down = null;
+canvas.addEventListener("pointerdown", e => down = [e.clientX, e.clientY]);
+canvas.addEventListener("pointerup", e => { if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 4 && hovered) select(hovered === selected ? null : hovered); });
+
+// ───────────────────────── UI
+const $ = id => document.getElementById(id);
+const toggle = (b, on) => { const v = on ?? b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", v); return v; };
+$("explode").oninput = e => setExplode(e.target.value / 100);
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => view(b.dataset.view));
+$("tWires").onclick = () => { toggle($("tWires")); setExplode($("explode").value / 100); };
+$("tPip").onclick = () => toggle($("tPip"));
+$("tGlass").onclick = () => { glass = toggle($("tGlass")); applyGlass(); };
+let blink = null;
+for (const [id, mode] of [["bLeft", "L"], ["bRight", "R"], ["bHaz", "H"]]) $(id).onclick = () => {
+  const on = toggle($(id)); ["bLeft", "bRight", "bHaz"].forEach(o => o !== id && toggle($(o), false)); blink = on ? mode : null; };
+let driving = false; $("bDrive").onclick = () => driving = toggle($("bDrive"));
+let cycling = true; $("bCycle").onclick = () => cycling = toggle($("bCycle"));
+function setTab(t) {
+  tab = t; car.visible = t === "car"; sig.visible = t === "sig"; selected = null; select(null);
+  $("tabCar").setAttribute("aria-selected", t === "car"); $("tabSig").setAttribute("aria-selected", t === "sig");
+  $("carControls").hidden = t !== "car"; $("sigControls").hidden = t !== "sig"; $("phase").hidden = t !== "sig";
+  view("iso");
+}
+$("tabCar").onclick = () => setTab("car"); $("tabSig").onclick = () => setTab("sig");
+
+// ESP32-CAM 시점 카메라 (sim.py: 30° 아래, 세로 화각 92°)
+const camEsp = new THREE.PerspectiveCamera(92.2, 4 / 3, 2, 3000);
+function updateEspCam() {
+  car.updateMatrixWorld();
+  const p = car.localToWorld(LENS.clone()), f = car.localToWorld(LENS.clone().add(U)), up = car.localToWorld(LENS.clone().add(VUP)).sub(p);
+  camEsp.position.copy(p); camEsp.up.copy(up); camEsp.lookAt(f);
+}
+
+// 신호 순서 (road_signal.ino 의 동서 방향 등): 초록 6 · 노랑 2 · 빨강+화살표 5 · 노랑 2 · 빨강 16
+const PH = [[6, [0, 0, 0, 1], "동서 직진 — 초록"], [2, [0, 1, 0, 0], "노랑"], [5, [1, 0, 1, 0], "동서 좌회전 — 빨강 + 화살표"], [2, [0, 1, 0, 0], "노랑"], [16, [1, 0, 0, 0], "남북 차례 — 빨강"]];
+const PH_T = PH.reduce((a, b) => a + b[0], 0);
+
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  $("pipLabel").style.bottom = (Math.round(Math.min(260, w * .36) * .75) + 22) + "px"; }
+addEventListener("resize", resize);
+
+const clock = new THREE.Clock(); let tt = 0;
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), .05); tt += dt;
+  if (fly) { const k = Math.min((performance.now() - fly.t0) / 700, 1), e = 1 - Math.pow(1 - k, 3);
+    camera.position.lerpVectors(fly.p0, fly.p1, e); controls.target.lerpVectors(fly.q0, fly.q1, e); if (k >= 1) fly = null; }
+  controls.update();
+  const on = Math.floor(tt * 2.6) % 2 === 0;
+  for (const [k, l] of Object.entries(ledObjs)) { const lit = blink && on && (blink === "H" || k[0] === blink);
+    (l.userData.leds || []).forEach(m => m.emissiveIntensity = lit ? 2.2 : 0); }
+  if (driving) parts.filter(p => p.name.startsWith("바퀴")).forEach(p => p.objs[0][0].rotation.y += dt * 4);
+  if (tab === "sig") { let t = cycling ? tt % PH_T : 0, i = 0; while (t > PH[i][0]) { t -= PH[i][0]; i++; }
+    const st = cycling ? PH[i] : [0, [0, 0, 0, 0], "꺼짐"];
+    sigLamps.forEach((m, j) => m.emissiveIntensity = st[1][j] ? 2.4 : 0);
+    $("phase").textContent = cycling ? `${st[2]} · ${Math.ceil(PH[i][0] - t)}초` : "꺼짐"; }
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setViewport(0, 0, w, h); renderer.setScissorTest(false); renderer.render(scene, camera);
+  const pip = tab === "car" && $("tPip").getAttribute("aria-pressed") === "true" && $("explode").value == 0;
+  $("pipLabel").hidden = !pip;
+  if (pip) { const pw = Math.round(Math.min(260, w * .36)), ph = Math.round(pw * .75);
+    updateEspCam(); renderer.setScissorTest(true); renderer.setViewport(w - pw - 14, 14, pw, ph); renderer.setScissor(w - pw - 14, 14, pw, ph);
+    renderer.render(scene, camEsp); renderer.setScissorTest(false); }
+}
+
+(async () => {
+  try { await Promise.all([document.fonts.load('600 12px "IBM Plex Mono"'), document.fonts.load('700 12px "IBM Plex Sans KR"')]); } catch (e) {}
+  buildCar(); buildSignal(); finishParts();
+  car.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  resize(); renderList();
+  camera.position.copy(carCenter()).add(VIEWS.iso.clone().normalize().multiplyScalar(520)); controls.target.copy(carCenter());
+  $("loading").hidden = true;
+  loop();
+})();
+</script>

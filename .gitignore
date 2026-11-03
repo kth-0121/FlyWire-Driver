@@ -7,3 +7,6 @@ train*.log
 train.err
 drive_*.png
 MUJOCO_LOG.TXT
+compare.log
+compare.err
+eval_*.log
