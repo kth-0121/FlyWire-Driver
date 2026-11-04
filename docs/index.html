@@ -1,3 +1,4 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FlyDrive 조립 모형</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
@@ -5,7 +6,7 @@
 /* 작업대 위 모형: 왼쪽 부품 패널 + 오른쪽 3D 작업대 (커팅 매트) */
 :root {
   --bg: #15191c; --panel: #1d2327; --line: #2f383e; --fg: #e8ece9; --dim: #93a09a;
-  --accent: #f2c200; --mat: #2e6b4f; --hl: #6fd3a8;
+  --accent: #f2c200; --mat: #2e6b4f; --hl: #6fd3a8; --must: #ff4d3d; --rec: #ff9f1c;
   --sans: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
   color-scheme: dark;
@@ -44,6 +45,20 @@ canvas#c { display: block; width: 100%; height: 100%; }
 #hint { position: absolute; left: 14px; bottom: 12px; font: 11px var(--mono); color: var(--dim); }
 #pipLabel { position: absolute; right: 14px; font: 600 11px var(--mono); color: var(--hl); }
 #phase { position: absolute; left: 14px; top: 12px; font: 600 13px var(--sans); background: rgba(20,24,27,.85); border: 1px solid var(--line); padding: 8px 12px; border-radius: 6px; }
+#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.sl { position: absolute; transform: translate(10px, -50%); white-space: nowrap; font: 600 11px var(--sans); padding: 3px 7px; border-radius: 4px; background: rgba(20,24,27,.9); border-left: 3px solid var(--must); }
+.sl.rec { border-left-color: var(--rec); }
+.legend { display: grid; gap: 4px; font-size: 12px; color: var(--dim); line-height: 1.5; }
+.legend b { color: var(--fg); font-weight: 600; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.step { display: grid; gap: 6px; background: #161b1e; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.step .sn { font: 600 11px var(--mono); color: var(--accent); letter-spacing: .06em; }
+.step h2 { font-size: 15px; margin: 0; text-wrap: balance; }
+.step p { margin: 0; font-size: 12.5px; line-height: 1.6; color: #c9d2cd; }
+.step .tools { font: 11.5px var(--mono); color: var(--dim); }
+.step .tools.hot { color: var(--must); }
+.nav { display: flex; gap: 6px; }
+.nav button { flex: 1; }
 #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font: 13px var(--mono); }
 @media (max-width: 760px) {
   #app { grid-template-columns: 1fr; grid-template-rows: 58% 42%; }
@@ -65,6 +80,16 @@ canvas#c { display: block; width: 100%; height: 100%; }
       <button class="tab" role="tab" id="tabSig" aria-selected="false">신호등</button>
     </div>
     <div class="controls" id="carControls">
+      <div class="row"><span class="lbl">조립 순서</span>
+        <button class="chip" id="bSteps" aria-pressed="false">순서대로 조립해 보기</button>
+      </div>
+      <div class="step" id="stepCard" hidden>
+        <span class="sn" id="stepNo"></span>
+        <h2 id="stepTitle"></h2>
+        <p id="stepText"></p>
+        <span class="tools" id="stepTools"></span>
+        <div class="nav"><button class="chip" id="bPrev">‹ 이전</button><button class="chip" id="bNext">다음 ›</button></div>
+      </div>
       <div class="row"><span class="lbl">분해</span><input type="range" id="explode" min="0" max="100" value="0" aria-label="분해 정도"></div>
       <div class="row"><span class="lbl">보기</span>
         <button class="chip" data-view="iso">비스듬히</button><button class="chip" data-view="front">앞</button>
@@ -74,6 +99,12 @@ canvas#c { display: block; width: 100%; height: 100%; }
         <button class="chip" id="tWires" aria-pressed="true">전선</button>
         <button class="chip" id="tPip" aria-pressed="true">ESP32-CAM 화면</button>
         <button class="chip" id="tGlass" aria-pressed="false">판 투명</button>
+        <button class="chip" id="tSolder" aria-pressed="false">납땜 위치</button>
+      </div>
+      <div class="legend" id="solderLegend" hidden>
+        <span><span class="dot" style="background:var(--must)"></span><b>꼭 납땜 4곳</b> — MP1584 의 IN+ · IN− · OUT+ · OUT− 에 전선 4가닥. 단자가 구멍뿐이라 꽂을 수 없음.</span>
+        <span><span class="dot" style="background:var(--rec)"></span><b>납땜하면 좋음 7곳</b> — 방향지시등 LED 다리 ↔ 220Ω 4곳, 분압 저항 이음 3곳. 꼬아서 절연테이프로 감아도 동작함.</span>
+        <span><b>납땜 필요 없음</b> — TT 모터(선 달려 나옴), L298N·배터리(나사 단자), Uno·ESP32-CAM(헤더 완성품), 신호등 LED(암 점퍼선).</span>
       </div>
       <div class="row"><span class="lbl">동작</span>
         <button class="chip" id="bLeft" aria-pressed="false">좌 깜빡이</button><button class="chip" id="bRight" aria-pressed="false">우 깜빡이</button>
@@ -91,6 +122,7 @@ canvas#c { display: block; width: 100%; height: 100%; }
   <main id="stage">
     <canvas id="c"></canvas>
     <div id="loading">모형 만드는 중…</div>
+    <div id="labels"></div>
     <div id="tip" hidden></div>
     <div id="phase" hidden></div>
     <div id="pipLabel" hidden>ESP32-CAM 이 보는 화면 (아래로 30°, 세로 화각 92°)</div>
@@ -199,7 +231,7 @@ function part(info, objs) { const pt = Object.assign({ objs, meshes: [] }, info)
 
 // ───────────────────────── 자동차 (car3d.py · assembly.py 치수)
 const F = 65, R = 152.5, W = 135, Z1 = 42, Z2 = Z1 + 3 + 30, WR = 32.5, WY = 82.5;
-const LX = -2;                                    // L298N 중심 x
+const LX = -3;                                    // L298N 중심 x
 const UNO0 = [-109.3, -26.65], UNOZ = Z2 + 3 + 4.8;     // Uno 기판 원점(USB 쪽 모서리), 기판 밑면
 const UNO_HOLES = [[14.0, 2.5], [15.3, 50.7], [66.1, 7.6], [66.1, 35.5]];
 const STANDOFFS = [[-140, 42], [-140, -42], [-5, 42], [-5, -42]];
@@ -309,7 +341,7 @@ function l298n(p) {                    // 빨간 L298N 모듈
   return g;
 }
 function mp1584(p) {
-  const g = grp(p, -35, 38, Z1 + 3 + 1);
+  const g = grp(p, -80, 45, Z1 + 3 + 1);
   const tex = pcbTex(22, 17, "#1c4fa8", t => {
     traces(t, 22, 17, "#2c64c4", 10, 5);
     T(t, "IN+", 3.5, 14, 1.2); T(t, "IN-", 3.5, 3, 1.2); T(t, "OUT+", 18.5, 14, 1.2); T(t, "OUT-", 18.5, 3, 1.2);
@@ -320,6 +352,11 @@ function mp1584(p) {
   box(g, 3.2, 3.2, 2, M("trim", 0x2f64c8), -3.5, 4.5, 2.2); cylZ(g, 1, .5, mat.brass(), -3.5, 4.5, 3.3, 12);
   box(g, 3, 2.5, 1, mat.black(), -4, -3, 1.7);
   box(g, 22, 17, 1, mat.tape(), 0, 0, -.5);
+  // 납땜한 전선 4가닥 (구멍에 꽂고 납땜 → 둥근 납 덩어리)
+  for (const [x, y, c] of [[-9, 3.8, 0xd8312b], [-9, -3.8, 0x1c1c1c], [9, 3.8, 0xf08a1c], [9, -3.8, 0x1c1c1c]]) {
+    add(g, new THREE.SphereGeometry(1.15, 16, 8, 0, 2 * PI, 0, PI / 2), M("solder", 0xd9dde0, { metalness: .9, roughness: .25 }), x, y, 1.2, PI / 2, 0, 0);
+    wire(g, [[x, y, 1.6], [x + Math.sign(x) * 1.5, y, 3.2], [x + Math.sign(x) * 6, y, 2.4]], c, .75);
+  }
   return g;
 }
 function unoBoard(p, x = UNO0[0], y = UNO0[1], z = UNOZ, screws = true) {   // Arduino Uno R3 (USB 가 뒤)
@@ -460,24 +497,24 @@ function buildCar() {
   const so = grp(car);
   STANDOFFS.forEach(([x, y]) => { add(so, new THREE.CylinderGeometry(3.2, 3.2, 30, 6), mat.brass(), x, y, Z1 + 3 + 15, PI / 2, 0, 0);
     screwHead(so, x, y, Z2 + 3, 1); screwHead(so, x, y, Z1, -1); });
-  part({ no: "15", name: "황동 서포트 ×4", spec: "M3×30 육각 · 위아래 나사" }, [[so, V3(0, 0, 45)]]);
+  part({ no: "14", name: "황동 서포트 ×4", spec: "M3×30 육각 · 위아래 나사" }, [[so, V3(0, 0, 45)]]);
   for (const s of [1, -1]) {
     const side = s > 0 ? "왼쪽" : "오른쪽";
-    part({ no: "1", name: `TT 모터 (${side})`, spec: "3~6V · 기어비 1:48 · 70×22.5×18.8" }, [[ttMotor(car, s), V3(0, s * 30, -35)]]);
+    part({ no: "1", name: `TT 모터 (${side})`, spec: "아이씨뱅큐 D19-1 · 1:48 양축 200RPM · 70×22.5×18.8" }, [[ttMotor(car, s), V3(0, s * 30, -35)]]);
     part({ no: "17", name: `L 브라켓 (${side})`, spec: "알루미늄 2mm · M3 25mm 나사 2개로 모터 고정" }, [[lBracket(car, s), V3(0, s * 12, -18)]]);
-    part({ no: "2", name: `바퀴 (${side})`, spec: "Ø65 고무 · 폭 26 · 바퀴 중심 y ±82.5" }, [[wheel(car, s), V3(0, s * 70, -35)]]);
+    part({ no: "1", name: `바퀴 (${side})`, spec: "Ø65 고무 · 폭 26 · 바퀴 중심 y ±82.5" }, [[wheel(car, s), V3(0, s * 70, -35)]]);
   }
   const cs = grp(car, -125, 0, 0);
   add(cs, new THREE.SphereGeometry(5.5, 32, 16), mat.silver(), 0, 0, 5.5);
   cylZ(cs, 7.2, 7, mat.black(), 0, 0, 8.5, 28); box(cs, 26, 9, 2, mat.black(), 0, 0, 11);
   for (const y of [8, -8]) { add(cs, new THREE.CylinderGeometry(3.2, 3.2, 30, 6), mat.brass(), 0, y, 27, PI / 2, 0, 0); }
-  part({ no: "3", name: "볼캐스터 + 서포트 2", spec: "볼 Ø11 · 서포트 30mm 로 판 밑면 42mm" }, [[cs, V3(0, 0, -40)]]);
-  part({ no: "7·8", name: "18650 홀더 + 배터리 2", spec: "직렬 7.4V · 77×41×21 · 양면테이프" }, [[batteryHolder(car), V3(0, 0, 40)]]);
-  part({ no: "4", name: "L298N 모터 드라이버", spec: "43×43 · 방열판 앞 · 단자·헤더 뒤" }, [[l298n(car), V3(0, 0, 40)]]);
-  part({ no: "10", name: "MP1584 5V 강압", spec: "22×17 · 배터리 7.4V → 5.0V (ESP32-CAM)" }, [[mp1584(car), V3(0, 25, 40)]]);
+  part({ no: "2", name: "볼캐스터 + 서포트 2", spec: "볼 Ø11 · 서포트 30mm 로 판 밑면 42mm" }, [[cs, V3(0, 0, -40)]]);
+  part({ no: "6·7", name: "18650 홀더 + 배터리 2", spec: "직렬 7.4V · 77×41×21 · 양면테이프" }, [[batteryHolder(car), V3(0, 0, 40)]]);
+  part({ no: "3", name: "L298N 모터 드라이버", spec: "43×43 · 방열판 앞 · 단자·헤더 뒤" }, [[l298n(car), V3(0, 0, 40)]]);
+  part({ no: "9", name: "MP1584 5V 강압", spec: "22×17 · 배터리 옆 · 7.4V → 5.0V (ESP32-CAM)" }, [[mp1584(car), V3(0, 25, 40)]]);
   part({ no: "키트", name: "Arduino Uno", spec: "68.6×53.3 · USB 뒤 · M3 나사 + 너트 2개" }, [[unoBoard(car), V3(0, 0, 140)]]);
   const esp = espCam(car), mount = camMount(car);
-  part({ no: "5·6", name: "ESP32-CAM + 160° 렌즈", spec: "27×40.5 · 렌즈 높이 150 · 30° 아래" }, [[esp, V3(40, 0, 70)]]);
+  part({ no: "4·5", name: "ESP32-CAM + 160° 렌즈", spec: "27×40.5 · 렌즈 높이 150 · 30° 아래" }, [[esp, V3(40, 0, 70)]]);
   part({ no: "16", name: "카메라 기둥·쐐기·카메라판", spec: `포맥스 · 기둥 ${(mount.top - Z1 - 3).toFixed(0)}mm · 쐐기 30°` }, [[mount.g, V3(20, 0, 40)]]);
   const lg = grp(car);
   LEDS.forEach(([x, y]) => { const l = led5(lg, x, y, Z1 + 3, 0xffc21a); ledObjs[(y > 0 ? "L" : "R") + (x > 0 ? "f" : "r")] = l;
@@ -489,7 +526,41 @@ function buildCar() {
   part({ no: "키트", name: "분압 저항 10kΩ ×3", spec: "Uno D11(5V) → ESP32 GPIO15(3.3V)" }, [[dv, V3(0, 0, 140)]]);
   buildWires(mount);
   part({ no: "키트", name: "전선", spec: "보유 점퍼선 · 빨강 +7.4V · 검정 GND · 주황 5V" }, [[wiresG, V3(0, 0, 0)]]);
+  buildSolder();
 }
+
+// ───────────────────────── 납땜 위치 (빨강 = 꼭, 주황 = 하면 좋음)
+let solderG = null; const solderPts = [];
+function buildSolder() {
+  solderG = grp(car);
+  const pads = [["IN+", -89, 48.8], ["IN−", -89, 41.2], ["OUT+", -71, 48.8], ["OUT−", -71, 41.2]];
+  pads.forEach(([n, x, y]) => solderPts.push({ p: V3(x, y, Z1 + 3 + 2.2), must: true, text: `꼭 납땜 · MP1584 ${n}` }));
+  LEDS.forEach(([x, y]) => { const sx = Math.sign(x), sy = Math.sign(y);
+    solderPts.push({ p: V3(x - sx * 5, y - sy * 6, Z1 + 4.4), must: false, text: `LED ${y > 0 ? "왼쪽" : "오른쪽"} ${x > 0 ? "앞" : "뒤"} 다리 ↔ 220Ω` }); });
+  [-28, -20, -12].forEach((x, i) => solderPts.push({ p: V3(x, -30 + (i === 2 ? 7 : -7), Z2 + 4.4), must: false, text: `분압 저항 이음 ${i + 1}` }));
+  const box = document.getElementById("labels");
+  solderPts.forEach(s => {
+    const c = s.must ? 0xff4d3d : 0xff9f1c;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(s.must ? 2.4 : 1.9, 20, 12), new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true, opacity: .9 }));
+    const r = new THREE.Mesh(new THREE.RingGeometry(3.2, 4, 32), new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true, opacity: .7, side: THREE.DoubleSide }));
+    m.position.copy(s.p); r.position.copy(s.p); m.renderOrder = r.renderOrder = 10; solderG.add(m, r); s.mesh = m; s.ring = r;
+    s.el = document.createElement("div"); s.el.className = "sl" + (s.must ? "" : " rec"); s.el.textContent = s.text; s.el.hidden = true; box.appendChild(s.el);
+  });
+  solderG.visible = false;
+}
+function updateSolder(t) {
+  if (!solderG) return;
+  const show = solderG.visible && car.visible, w = stage.clientWidth, h = stage.clientHeight;
+  solderPts.forEach((s, i) => {
+    const k = 1 + .25 * Math.sin(t * 5 + i); s.mesh.scale.setScalar(k); s.ring.scale.setScalar(1 + .6 * ((t * 1.2 + i * .13) % 1)); s.ring.lookAt(camera.position);
+    s.ring.material.opacity = .7 * (1 - (t * 1.2 + i * .13) % 1);
+    if (!show || (!s.must && !showRec)) { s.el.hidden = true; s.mesh.visible = s.ring.visible = show && (s.must || showRec); return; }
+    s.mesh.visible = s.ring.visible = true;
+    const v = car.localToWorld(s.p.clone()).project(camera);
+    s.el.hidden = v.z > 1; s.el.style.left = ((v.x + 1) / 2 * w) + "px"; s.el.style.top = ((1 - v.y) / 2 * h) + "px";
+  });
+}
+let showRec = true;
 function buildWires(mount) {
   const top = Z1 + 3 + 2.4 + 1.6, hdrTop = top + 2.5 + 12;
   const L = (x, y, z) => [LX + x, y, z];
@@ -503,12 +574,12 @@ function buildWires(mount) {
   wire(wiresG, [L(-21.6, -14.08, top + 4.2), L(-27, -13, top + 9), [-26, 4, 68], [-20, 7, 78], [-26, 0, 92], [vin.x + 4, vin.y + 2, vin.z + 14], [vin.x, vin.y, vin.z + 10], [vin.x, vin.y, vin.z]], RED);
   wire(wiresG, [L(-21.6, -9, top + 4.2), L(-27, -8, top + 10), [-24, 6, 68], [-20, 10, 78], [-28, 2, 94], [ugnd.x + 4, ugnd.y + 2, ugnd.z + 14], [ugnd.x, ugnd.y, ugnd.z + 10], [ugnd.x, ugnd.y, ugnd.z]], BLK);
   // 12V·GND → MP1584 IN
-  wire(wiresG, [L(-21.6, -14.08, top + 3.8), L(-26, -12, top + 2), [-40, 12, 48], [-46, 30, 48], [-44, 41.4, 47.6]], RED);
-  wire(wiresG, [L(-21.6, -9, top + 3.8), L(-25, -6, top + 2), [-38, 14, 48], [-47, 28, 48], [-44, 34.6, 47.6]], BLK);
+  wire(wiresG, [L(-21.6, -14.08, top + 3.8), L(-26, -12, top + 2), [-45, 24, 48], [-62, 30, 49], [-86, 52, 48], [-89, 48.8, 47.6]], RED);
+  wire(wiresG, [L(-21.6, -9, top + 3.8), L(-25, -6, top + 2), [-43, 22, 47.5], [-60, 28, 48], [-86, 37, 48], [-89, 41.2, 47.6]], BLK);
   // MP1584 OUT → ESP32-CAM 5V·GND (기둥 뒤로 올라감)
-  for (const [name, y0, c] of [["5V", 41.4, ORG], ["GND", 34.6, BLK]]) {
+  for (const [name, y0, c] of [["5V", 48.8, ORG], ["GND", 41.2, BLK]]) {
     const e = espPin(name), xb = mount.xf - 7.5;
-    wire(wiresG, [[-26, y0, 47.6], [-14, y0 - 4, 48], [xb - 6, 14, 49], [xb, 11 + (c === ORG ? 1.5 : 0), 60], [xb, 11 + (c === ORG ? 1.5 : 0), e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c);
+    wire(wiresG, [[-71, y0, 47.6], [-64, y0 + 4, 49], [-40, 30, 49], [-14, 24, 48], [xb - 6, 14, 49], [xb, 11 + (c === ORG ? 1.5 : 0), 60], [xb, 11 + (c === ORG ? 1.5 : 0), e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c);
   }
   // 모터 → L298N OUT (Ø8 구멍으로 올라옴)
   for (const s of [1, -1]) {
@@ -543,13 +614,13 @@ const sigLamps = [];
 function buildSignal() {
   const base = grp(sig);
   box(base, 260, 200, 3, M("board", 0x111214, { roughness: .9 }), 60, 0, 1.5);
-  part({ no: "22", name: "바닥 판 (검정 폼보드)", spec: "3T · 코스 조각 위", tab: "sig" }, [[base, V3(0, 0, 0)]]);
+  part({ no: "23", name: "바닥 판 (검정 폼보드)", spec: "3T · 코스 조각 위", tab: "sig" }, [[base, V3(0, 0, 0)]]);
   const pole = grp(sig, 0, 0, 3);
   box(pole, 15, 15, 330, M("poleb", 0x1a1b1d, { roughness: .8 }), 0, 0, 165);
   box(pole, 15, 260, 15, M("poleb", 0x1a1b1d), 0, 130 - 7.5, 330 - 7.5);
   for (const y of [8, -8]) { const s = new THREE.Shape(); s.moveTo(0, 0); s.lineTo(40, 0); s.lineTo(0, 40); s.lineTo(0, 0);
     const gg = new THREE.ExtrudeGeometry(s, { depth: 3, bevelEnabled: false }); gg.translate(0, 0, -1.5); add(pole, gg, M("poleb", 0x1a1b1d), 7.5, y, 0, PI / 2, 0, 0); }
-  part({ no: "22", name: "기둥·팔", spec: "검정 폼보드 6cm 띠를 접은 15×15 사각 · 높이 330 · 팔 260", tab: "sig" }, [[pole, V3(0, 0, 0)]]);
+  part({ no: "23", name: "기둥·팔", spec: "검정 폼보드 6cm 띠를 접은 15×15 사각 · 높이 330 · 팔 260", tab: "sig" }, [[pole, V3(0, 0, 0)]]);
   const head = grp(sig, -10, 260 - 28 * 1.5 - 30, 303);
   box(head, 20, 136, 32, M("headb", 0x0d0d0e, { roughness: .7 }), 0, 0, 0);
   box(head, 6, 2, 12, M("poleb", 0x1a1b1d), 4, 0, 22);
@@ -567,7 +638,7 @@ function buildSignal() {
       add(lg, new THREE.PlaneGeometry(12, 12), am, -10.6, 0, 0, 0, -PI / 2, PI / 2).scale.x = -1; }
     sigLamps.push(m);
   });
-  part({ no: "11–13", name: "등 머리 + 10mm LED 4개", spec: "136×32×20 · 빨강·노랑·화살표·초록 · 28 간격", tab: "sig" }, [[head, V3(-40, 0, 0)]]);
+  part({ no: "10–12", name: "등 머리 + 10mm LED 4개", spec: "136×32×20 · 빨강·노랑·화살표·초록 · 28 간격", tab: "sig" }, [[head, V3(-40, 0, 0)]]);
   // Nano + 브레드보드 + 저항
   const bb = grp(sig, 80, -40, 3);
   const bbt = pcbTex(82, 55, "#f3f1ea", t => { t.fillStyle = "#cfcbc0";
@@ -586,7 +657,7 @@ function buildSignal() {
   wc.forEach((c, i) => wire(rw, [[75 + i * 5.08, -15, 15], [60 - i * 2, -6, 18], [14 - i * 2, 6, 20], [10, 6 + i * 2, 120], [10, 6 + i * 2, 323], [10, 40 + i * 2, 336], [10, 160 - i * 6, 336], [-2, 205 - i * 10, 320], head.position.toArray().map((v, k) => v + [8, (i - 1.5) * 28, 0][k])], c, .7));
   wire(rw, [[110, -60, 15], [20, -6, 18], [7, 9, 120], [7, 9, 323], [7, 40, 338], [7, 170, 338], [-2, 220, 318], [-2, 200, 306]], 0x1c1c1c, .7);
   wire(rw, [[148, -37, 11], [140, -10, 4], [60, 60, 2], [-140, 120, 2]], 0x9a9a9a, 1.6);
-  part({ no: "14", name: "220Ω ×4 + 전선 5가닥", spec: "신호 4 + GND 1 · 기둥 뒤로 올림", tab: "sig" }, [[rw, V3(0, 0, 0)]]);
+  part({ no: "13", name: "220Ω ×4 + 전선 5가닥", spec: "신호 4 + GND 1 · 기둥 뒤로 올림", tab: "sig" }, [[rw, V3(0, 0, 0)]]);
 }
 
 // ───────────────────────── 목록 · 강조 · 분해
@@ -624,12 +695,73 @@ function select(p) {
 }
 let glass = false;
 function applyGlass() { if (selected) return; parts.filter(p => p.name.endsWith("판") && p.no === "18").forEach(p => p.meshes.forEach(m => setOpacity(m, glass ? .3 : 1))); }
+function place(o, v, t) {
+  if (o.userData.base) o.position.copy(o.userData.base).addScaledVector(v, t);
+  else { o.matrix.copy(o.userData.baseM); const e = o.matrix.elements; e[12] += v.x * t; e[13] += v.y * t; e[14] += v.z * t; }
+}
 function setExplode(t) {
-  parts.forEach(p => p.objs.forEach(([o, v]) => {
-    if (o.userData.base) o.position.copy(o.userData.base).addScaledVector(v, t);
-    else { o.matrix.copy(o.userData.baseM); const e = o.matrix.elements; e[12] += v.x * t; e[13] += v.y * t; e[14] += v.z * t; }
-  }));
+  parts.forEach(p => p.objs.forEach(([o, v]) => place(o, v, t)));
   wiresG.visible = document.getElementById("tWires").getAttribute("aria-pressed") === "true" && t < .01;
+}
+
+// ───────────────────────── 조립 순서 (부품 이름 앞부분으로 찾음)
+const STEPS = [
+  { t: "차체판 자르기", p: ["아래판"], tools: "칼 · 쇠자 · 3mm 드릴(공작실)",
+    d: "포맥스(16번)에 1:1 도안을 대고 아래판 217.5×135 를 자름. 칼로 여러 번 그어 꺾으면 깨끗이 잘림. 서포트·LED·모터선·L298N·캐스터·브라켓 구멍을 뚫음." },
+  { t: "모터에 L 브라켓 달기", p: ["TT 모터", "L 브라켓"], tools: "드라이버 (브라켓 나사 포함)",
+    d: "브라켓 세운 면을 모터 안쪽 면에 대고 25mm 나사 2개를 모터 구멍에 관통 → 너트. 브라켓 눕힌 면을 아래판 밑면에 10mm 나사 2개로 고정. 모터 선은 이미 달려 나옴 (납땜 없음)." },
+  { t: "바퀴 끼우기", p: ["바퀴"], tools: "손",
+    d: "바퀴 가운데 D자 구멍을 모터 바깥쪽 흰 축에 끝까지 밀어 넣음. 두 바퀴 중심 사이 165mm 인지 자로 확인." },
+  { t: "볼캐스터 달기", p: ["볼캐스터"], tools: "3mm 드릴 · 드라이버",
+    d: "캐스터 고정 구멍(M2)을 3mm 로 넓힘 → 서포트(14·15번)를 겹쳐 아래판 밑면 뒤쪽에. 평평한 책상에서 판이 수평(밑면 높이 42mm)이 되게 서포트 길이를 20+6mm 등으로 조합." },
+  { t: "배터리 홀더", p: ["18650 홀더"], tools: "드라이버",
+    d: "홀더 바닥 구멍에 M3 볼트로 아래판 뒤쪽에 고정 (캐스터 나사 머리 위). 빨강·검정 선이 앞(L298N 쪽)을 보게. 아직 배터리는 넣지 않음." },
+  { t: "L298N 달기", p: ["L298N"], tools: "드라이버",
+    d: "6mm 플라스틱 서포트 4개로 띄워 고정. 방열판이 앞, 파란 전원 단자와 6핀 헤더가 뒤. ENA·ENB 점퍼 캡을 뽑아 둠." },
+  { t: "MP1584 납땜 → 5.0V 맞추기", p: ["MP1584"], tools: "★ 인두기·납 · 테스터(22번)", hot: true, solder: "must", dir: [-.25, 1.3, -.8],
+    d: "IN+ (빨강) · IN− (검정) · OUT+ (주황) · OUT− (검정) 구멍에 점퍼선 한쪽 끝을 꽂고 납땜 4곳. 배터리를 IN 에 물리고 테스터로 OUT 을 재며 가변저항을 돌려 5.0V. 그다음 양면테이프로 붙임." },
+  { t: "방향지시등 LED + 220Ω", p: ["방향지시등"], tools: "인두기(권장) 또는 절연테이프", solder: "rec", dir: [.15, 1.4, .45],
+    d: "키트 노랑 LED 4개를 모서리 Ø5 구멍에 꽂음. 긴 다리(+)에 220Ω 을 이어 납땜 (또는 꼬아서 절연테이프). 짧은 다리(−)는 GND 선." },
+  { t: "카메라 기둥·쐐기·카메라판", p: ["카메라 기둥"], tools: "순간접착제(25번)",
+    d: "포맥스 기둥 2장을 겹쳐 붙여 세우고 뒤에 받침 2개. 맨 위 앞면에 30° 쐐기 → 카메라판 → 암 헤더 2줄을 붙임." },
+  { t: "ESP32-CAM + 광각 렌즈", p: ["ESP32-CAM"], tools: "손 (업로드는 MB 보드로 먼저)",
+    d: "기본 카메라를 빼고 160° 렌즈(5번) FPC 를 끼움. 코드를 MB 보드로 먼저 올린 뒤, CAM 보드만 카메라판 헤더에 꽂음. 렌즈 높이 바닥에서 150mm 확인." },
+  { t: "서포트 + 윗판", p: ["황동 서포트", "윗판"], tools: "드라이버",
+    d: "30mm 황동 서포트 4개를 아래판에 세우고 윗판(145×100)을 얹어 나사로 고정. 배선 구멍(Ø12)이 앞쪽 가운데." },
+  { t: "Uno + 분압 저항", p: ["Arduino Uno", "분압 저항"], tools: "드라이버 · 인두기(권장)", solder: "rec", dir: [.5, 1.2, .5],
+    d: "Uno 를 6mm 서포트로 윗판에 고정, USB 가 뒤. 10kΩ 3개를 D11 → 10k → GPIO15, GPIO15 → 10k → 10k → GND 로 이음 (납땜 또는 꼬아서 테이프)." },
+  { t: "배선", p: ["전선"], tools: "점퍼선 · 드라이버",
+    d: "배선표 순서: 배터리 → L298N 12V·GND → Uno VIN·GND → MP1584 IN. MP1584 OUT → ESP32 5V·GND. Uno D5·D7·D8·D9·D10·D6 → ENA·IN1·IN2·IN3·IN4·ENB. 모터선 → OUT1~4. GPIO14 → D12. LED → D2·D3." },
+  { t: "시험", p: [], tools: "테스터 · 노트북",
+    d: "배터리 넣기 전 테스터로 +7.4V 와 GND 가 붙어 있지 않은지(합선) 확인. 바퀴를 들고 앞으로 명령 → 둘 다 앞으로 도는지 (반대면 OUT 두 선 맞바꿈). 깜빡이 좌·우·비상, ESP32-CAM 영상 확인." },
+];
+let stepMode = false, cur = 0, stepT0 = 0;
+function stepOf(p) { const i = STEPS.findIndex(s => s.p.some(n => p.name.startsWith(n))); return i < 0 ? 0 : i; }
+function applyStep(animate = true) {
+  const st = STEPS[cur];
+  $("stepNo").textContent = `${cur + 1} / ${STEPS.length} 단계`;
+  $("stepTitle").textContent = st.t; $("stepText").textContent = st.d;
+  $("stepTools").textContent = "필요: " + st.tools; $("stepTools").className = "tools" + (st.hot ? " hot" : "");
+  $("bPrev").disabled = cur === 0; $("bNext").disabled = cur === STEPS.length - 1;
+  parts.filter(p => !p.tab).forEach(p => { const k = stepOf(p); p.objs.forEach(([o]) => o.visible = k <= cur); });
+  wiresG.visible = stepOf(parts.find(p => p.name === "전선")) <= cur;
+  solderG.visible = !!st.solder || $("tSolder").getAttribute("aria-pressed") === "true"; showRec = st.solder !== "must";
+  stepT0 = animate ? performance.now() : 0;
+  const now = parts.filter(p => !p.tab && st.p.some(n => p.name.startsWith(n)));
+  if (now.length) { const b = new THREE.Box3(); now.forEach(p => p.meshes.forEach(m => b.expandByObject(m)));
+    flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 2.4, 230), V3(...(st.dir || [.8, .9, 1])).normalize()); }
+  else view("iso");
+}
+function setSteps(on) {
+  stepMode = on; $("stepCard").hidden = !on; $("explode").value = 0; $("explode").disabled = on; setExplode(0); select(null);
+  if (on) { cur = 0; applyStep(); }
+  else { parts.forEach(p => p.objs.forEach(([o]) => o.visible = true)); setExplode(0); solderG.visible = $("tSolder").getAttribute("aria-pressed") === "true"; showRec = true; view("iso"); }
+}
+function animateStep() {
+  if (!stepMode || !stepT0) return;
+  const k = Math.min((performance.now() - stepT0) / 900, 1), e = 1 - Math.pow(1 - k, 3), drop = V3(0, 0, 70);
+  parts.filter(p => !p.tab && STEPS[cur].p.some(n => p.name.startsWith(n))).forEach(p => p.objs.forEach(([o]) => place(o, drop, 1 - e)));
+  if (k >= 1) stepT0 = 0;
 }
 
 // 카메라 이동
@@ -648,7 +780,7 @@ let hovered = null;
 canvas.addEventListener("pointermove", e => {
   const r = canvas.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  const pool = parts.filter(p => (p.tab || "car") === tab && (!selected || p === selected)).flatMap(p => p.meshes).filter(m => m.visible && m.parent.visible);
+  const pool = parts.filter(p => (p.tab || "car") === tab && (!selected || p === selected)).flatMap(p => p.meshes).filter(m => { for (let o = m; o; o = o.parent) if (!o.visible) return false; return true; });
   const hit = ray.intersectObjects(pool, false)[0];
   const p = hit && hit.object.userData.part;
   if (p) { tip.hidden = false; tip.innerHTML = `<b>${p.name}</b><span>주문 ${p.no} · ${p.spec}</span>`;
@@ -670,12 +802,18 @@ document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => view(b.d
 $("tWires").onclick = () => { toggle($("tWires")); setExplode($("explode").value / 100); };
 $("tPip").onclick = () => toggle($("tPip"));
 $("tGlass").onclick = () => { glass = toggle($("tGlass")); applyGlass(); };
+$("tSolder").onclick = () => { const on = toggle($("tSolder")); $("solderLegend").hidden = !on; if (!stepMode) { solderG.visible = on; showRec = true; } else applyStep(false); };
+$("bSteps").onclick = () => setSteps(toggle($("bSteps")));
+$("bPrev").onclick = () => { if (cur > 0) { cur--; applyStep(); } };
+$("bNext").onclick = () => { if (cur < STEPS.length - 1) { cur++; applyStep(); } };
+addEventListener("keydown", e => { if (!stepMode || e.target.tagName === "INPUT") return; if (e.key === "ArrowRight") $("bNext").click(); if (e.key === "ArrowLeft") $("bPrev").click(); });
 let blink = null;
 for (const [id, mode] of [["bLeft", "L"], ["bRight", "R"], ["bHaz", "H"]]) $(id).onclick = () => {
   const on = toggle($(id)); ["bLeft", "bRight", "bHaz"].forEach(o => o !== id && toggle($(o), false)); blink = on ? mode : null; };
 let driving = false; $("bDrive").onclick = () => driving = toggle($("bDrive"));
 let cycling = true; $("bCycle").onclick = () => cycling = toggle($("bCycle"));
 function setTab(t) {
+  if (stepMode) { toggle($("bSteps"), false); setSteps(false); }
   tab = t; car.visible = t === "car"; sig.visible = t === "sig"; selected = null; select(null);
   $("tabCar").setAttribute("aria-selected", t === "car"); $("tabSig").setAttribute("aria-selected", t === "sig");
   $("carControls").hidden = t !== "car"; $("sigControls").hidden = t !== "sig"; $("phase").hidden = t !== "sig";
@@ -706,6 +844,7 @@ function loop() {
   if (fly) { const k = Math.min((performance.now() - fly.t0) / 700, 1), e = 1 - Math.pow(1 - k, 3);
     camera.position.lerpVectors(fly.p0, fly.p1, e); controls.target.lerpVectors(fly.q0, fly.q1, e); if (k >= 1) fly = null; }
   controls.update();
+  animateStep(); updateSolder(tt);
   const on = Math.floor(tt * 2.6) % 2 === 0;
   for (const [k, l] of Object.entries(ledObjs)) { const lit = blink && on && (blink === "H" || k[0] === blink);
     (l.userData.leds || []).forEach(m => m.emissiveIntensity = lit ? 2.2 : 0); }

@@ -171,6 +171,15 @@ STANDOFFS = car3d.STANDOFFS                                          # (-140|-5,
 UNO_HOLES = [(14.0, 2.5), (15.3, 50.7), (66.1, 7.6), (66.1, 35.5)]   # Uno R3, USB 쪽 모서리 기준
 UNO_X0, UNO_Y0 = -75 - 68.6 / 2, -53.4 / 2                            # USB 가 뒤(−x)를 봄
 LED_XY = [(58, 58), (58, -58), (-145, 58), (-145, -58)]
+LX = -3                                                              # L298N 중심 x (조립모형_3D.html 과 같음)
+# 카메라: 렌즈 (60, 0, 150), 30° 아래. 카메라판 뒤 아래 모서리가 기둥 앞면에 닿음 (조립모형_3D.html 과 같은 계산)
+_t = np.radians(sim.CAM_PITCH)
+_U, _V, _W = np.array([np.cos(_t), 0, -np.sin(_t)]), np.array([np.sin(_t), 0, np.cos(_t)]), np.array([0, 1, 0])
+_C = np.array(car3d.CAM, float) - (10 * _V + 9 * _U)
+_cw = lambda a, b, c: a * _W + b * _V + c * _U + _C
+_BB, _TB = _cw(0, -20, -14.5), _cw(0, 6, -14.5)
+MAST_X, MAST_H = _BB[0], _TB[2] - (car3d.Z1 + 3)                        # 기둥 앞면 x, 기둥 높이
+WEDGE = (_TB[0] - _BB[0], _TB[2] - _BB[2])                               # 쐐기 가로·세로 (30°)
 
 
 def sheet():
@@ -205,22 +214,26 @@ def page_bottom():
     P = lambda x, y: (ox + x, oy + y)
     ax.add_patch(Rectangle(P(-R, -W / 2), F + R, W, fc="none", ec="k", lw=1.2))
     zone(ax, *P(-95, 0), 77, 41, "18650 홀더\n(양면테이프)", "#444444")
-    zone(ax, *P(12, 0), 43, 43, "L298N\n방열판 위로", RED)
-    zone(ax, *P(-35, 0), 22, 17, "MP1584", "#2ca02c")
-    zone(ax, *P(car3d.CAM[0] - 9, 0), 8, 20, "기둥", "#444444")
+    zone(ax, *P(LX, 0), 43, 43, "L298N\n방열판 앞", RED)
+    zone(ax, *P(-80, 45), 22, 17, "MP1584", "#2ca02c")
+    zone(ax, *P(MAST_X - 3, 0), 6, 20, "기둥", "#444444")
     for s in (1, -1):                                                 # TT 모터 + L 브라켓은 판 밑면
         zone(ax, *P(-24, s * 56), 70, 22.5, "TT 모터 (밑면)", "#f2c200")
-        zone(ax, *P(-30, s * 35), 30, 16, "L 브라켓 (밑면)\n브라켓 대고 표시", "#1f77b4")
+        zone(ax, *P(-23, s * 36.75), 30, 16, "L 브라켓 (밑면)", "#1f77b4")
+        for x in (-34, -12):
+            hole(ax, *P(x, s * 36.75), 3.2)
         hole(ax, *P(-62, s * 40), 8, "모터선 Ø8")
     for x, y in STANDOFFS:
         hole(ax, *P(x, y), 3.2, "서포트 Ø3.2")
     for dx in (-18.5, 18.5):
         for dy in (-18.5, 18.5):
-            hole(ax, *P(12 + dx, dy), 3.2)
-    ax.text(*P(12, 25), "L298N 구멍 37×37 (실물 대고 확인)", fontsize=5, ha="center")
+            hole(ax, *P(LX + dx, dy), 3.2)
+    ax.text(*P(LX, 25), "L298N 구멍 37×37 (실물 대고 확인)", fontsize=5, ha="center")
     for x, y in LED_XY:
         hole(ax, *P(x, y), 5, "LED Ø5")
-    hole(ax, *P(-125, 0), 3.2, "캐스터 (밑면, 실물 대고 표시)\n나사 머리 위에 홀더를 붙임", dy=5)
+    for y in (8, -8):
+        hole(ax, *P(-125, y), 3.2)
+    ax.text(*P(-125, 13), "캐스터 2구멍 (간격은 실물 대고 확인)", fontsize=5, ha="center")
     ax.plot(*zip(P(0, -W / 2 - 6), P(0, W / 2 + 6)), "k-.", lw=.6)
     ax.text(*P(1, W / 2 + 7), "바퀴축 (바퀴 중심선)", fontsize=6)
     ax.annotate("", P(F + 18, 0), P(F + 3, 0), arrowprops=dict(arrowstyle="-|>", color="#2a7"))
@@ -231,7 +244,7 @@ def page_bottom():
         ax.text((a[0] + b[0]) / 2, a[1] + 1, t, fontsize=6, ha="center")
     ax.annotate("", P(-R - 8, W / 2), P(-R - 8, -W / 2), arrowprops=dict(arrowstyle="<->", lw=.6))
     ax.text(*P(-R - 10, 0), f"{W}", fontsize=6, rotation=90, ha="right", va="center")
-    ax.text(10, 200, "③ 아래판 1:1 — 포맥스 3T (주문 18). 위에서 본 모습. 굵은 선을 칼로 여러 번 그어 자르고, 구멍은 송곳 → Ø3 드릴.",
+    ax.text(10, 200, "③ 아래판 1:1 — 포맥스 3T (주문 16). 위에서 본 모습. 굵은 선을 칼로 여러 번 그어 자르고, 구멍은 송곳 → Ø3 드릴.",
             fontsize=8, weight="bold")
     ax.text(10, 194, "점선 칸은 부품 자리 (구멍 없음). TT 모터·브라켓·캐스터는 판 밑면에 붙음. 캐스터는 서포트 30mm 로 띄워 판 밑면 높이 42mm.",
             fontsize=6.5)
@@ -240,35 +253,35 @@ def page_bottom():
 
 def page_upper():
     fig, ax = sheet()
-    ox, oy = 30 + 75 + 70, 30 + 50                                    # 윗판 중심 (-70, 0) 기준
+    ox, oy = 30 + 145, 30 + 50                                           # 윗판 x -145~0
     P = lambda x, y: (ox + x, oy + y)
-    ax.add_patch(Rectangle(P(-145, -50), 150, 100, fc="none", ec="k", lw=1.2))
+    ax.add_patch(Rectangle(P(-145, -50), 145, 100, fc="none", ec="k", lw=1.2))
     zone(ax, *P(-75, 0), 68.6, 53.4, "Arduino Uno\nUSB → 뒤", "#00748c")
     for x, y in STANDOFFS:
         hole(ax, *P(x, y), 3.2, "서포트 Ø3.2")
     for bx, by in UNO_HOLES:
         hole(ax, *P(UNO_X0 + bx, UNO_Y0 + by), 3.2)
     ax.text(*P(-75, -33), "Uno 구멍 4개 Ø3.2 (Uno 를 대보고 맞으면 뚫기)", fontsize=5.5, ha="center")
-    hole(ax, *P(-20, 0), 10, "배선 Ø10")
-    ax.annotate("", P(20, 0), P(8, 0), arrowprops=dict(arrowstyle="-|>", color="#2a7"))
-    ax.text(*P(22, 0), "앞", color="#2a7", fontsize=9, va="center")
-    ax.annotate("", P(5, -57), P(-145, -57), arrowprops=dict(arrowstyle="<->", lw=.6))
-    ax.text(*P(-70, -56), "150", fontsize=6, ha="center")
+    hole(ax, *P(-20, 9), 12, "배선 Ø12")
+    ax.annotate("", P(15, 0), P(3, 0), arrowprops=dict(arrowstyle="-|>", color="#2a7"))
+    ax.text(*P(17, 0), "앞", color="#2a7", fontsize=9, va="center")
+    ax.annotate("", P(0, -57), P(-145, -57), arrowprops=dict(arrowstyle="<->", lw=.6))
+    ax.text(*P(-72.5, -56), "145", fontsize=6, ha="center")
     ax.annotate("", P(-152, 50), P(-152, -50), arrowprops=dict(arrowstyle="<->", lw=.6))
     ax.text(*P(-154, 0), "100", fontsize=6, rotation=90, ha="right", va="center")
     # 카메라 기둥 부품 (오른쪽)
     x0, y0 = 205, 30
     for i in range(2):                                                 # 기둥 2장 겹쳐 붙임 (6mm)
-        ax.add_patch(Rectangle((x0 + i * 26, y0), 20, 93, fc="none", ec="k", lw=1.2))
-        ax.text(x0 + i * 26 + 10, y0 + 46, f"기둥 {i + 1}\n20×93", fontsize=6, ha="center", va="center", rotation=90)
-    ax.add_patch(Rectangle((x0, y0 + 105), 27, 45, fc="none", ec="k", lw=1.2))
-    ax.text(x0 + 13.5, y0 + 127, "카메라판\n27×45", fontsize=6, ha="center", va="center")
+        ax.add_patch(Rectangle((x0 + i * 26, y0), 20, MAST_H, fc="none", ec="k", lw=1.2))
+        ax.text(x0 + i * 26 + 10, y0 + MAST_H / 2, f"기둥 {i + 1}\n20×{MAST_H:.0f}", fontsize=6, ha="center", va="center", rotation=90)
+    ax.add_patch(Rectangle((x0 + 54, y0 + 120), 27, 26, fc="none", ec="k", lw=1.2))
+    ax.text(x0 + 67.5, y0 + 133, "카메라판\n27×26", fontsize=6, ha="center", va="center")
     t = np.tan(np.radians(sim.CAM_PITCH))
     for i in range(2):                                                 # 30° 쐐기
-        bx = x0 + 40 + i * 28
-        ax.add_patch(Polygon([(bx, y0 + 105), (bx + 20, y0 + 105), (bx, y0 + 105 + 20 / t)], fc="none", ec="k", lw=1.2))
-        ax.text(bx + 3, y0 + 112, "30°", fontsize=6)
-    ax.text(x0 + 40, y0 + 145, "쐐기 ×2 (30°)", fontsize=6)
+        bx = x0 + 54 + i * 18
+        ax.add_patch(Polygon([(bx, y0 + 85), (bx + WEDGE[0], y0 + 85), (bx, y0 + 85 + WEDGE[1])], fc="none", ec="k", lw=1.2))
+        ax.text(bx + 1, y0 + 88, "30°", fontsize=6)
+    ax.text(x0 + 54, y0 + 112, "쐐기 ×2", fontsize=6)
     for i in range(2):                                                 # 기둥 받침 삼각
         by = y0 + i * 32
         ax.add_patch(Polygon([(x0 + 54, by), (x0 + 74, by), (x0 + 54, by + 25)], fc="none", ec="k", lw=1.2))
@@ -395,13 +408,13 @@ def page_steps():
     # 포맥스 300×450 재단 배치
     ax = fig.add_axes([.72, .05, .26, .5])
     ax.add_patch(Rectangle((0, 0), 300, 450, fc="#f4f4f4", ec="k"))
-    for x, y, w, h, t in ((5, 5, F + R, W, "아래판"), (5, 145, 150, 100, "윗판"), (160, 145, 20, 93, "기둥1"), (185, 145, 20, 93, "기둥2"),
-                          (210, 145, 27, 45, "카메라판"), (5, 250, 60, 40, "쐐기·받침")):
+    for x, y, w, h, t in ((5, 5, F + R, W, "아래판"), (5, 145, 145, 100, "윗판"), (160, 145, 20, MAST_H, "기둥1"), (185, 145, 20, MAST_H, "기둥2"),
+                          (210, 145, 27, 26, "카메라판"), (5, 250, 60, 40, "쐐기·받침")):
         ax.add_patch(Rectangle((x, y), w, h, fc="#9ecae1", ec="k"))
         ax.text(x + w / 2, y + h / 2, t, ha="center", va="center", fontsize=8)
     ax.set(xlim=(-5, 305), ylim=(-5, 455), aspect="equal")
     ax.axis("off")
-    ax.set_title("포맥스 3T 300×450 (주문 18) 한 장에서 자르기", fontsize=10)
+    ax.set_title("포맥스 3T 300×450 (주문 16) 한 장에서 자르기", fontsize=10)
     return fig
 
 
