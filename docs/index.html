@@ -57,6 +57,12 @@ canvas#c { display: block; width: 100%; height: 100%; }
 .step p { margin: 0; font-size: 12.5px; line-height: 1.6; color: #c9d2cd; }
 .step .tools { font: 11.5px var(--mono); color: var(--dim); }
 .step .tools.hot { color: var(--must); }
+.wt { width: 100%; border-collapse: collapse; font-size: 11.5px; line-height: 1.45; }
+.wt th { text-align: left; font: 600 11px var(--mono); color: var(--accent); padding: 8px 4px 3px; }
+.wt td { padding: 4px; border-top: 1px solid var(--line); vertical-align: top; color: #c9d2cd; }
+.wt td:nth-child(3) { color: var(--dim); }
+.wt input { accent-color: var(--hl); margin: 0; }
+#wireTable summary { cursor: pointer; font: 600 12px var(--sans); color: var(--fg); }
 .nav { display: flex; gap: 6px; }
 .nav button { flex: 1; }
 #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font: 13px var(--mono); }
@@ -88,6 +94,7 @@ canvas#c { display: block; width: 100%; height: 100%; }
         <h2 id="stepTitle"></h2>
         <p id="stepText"></p>
         <span class="tools" id="stepTools"></span>
+        <table class="wt" id="stepWires" hidden></table>
         <div class="nav"><button class="chip" id="bPrev">‹ 이전</button><button class="chip" id="bNext">다음 ›</button></div>
       </div>
       <div class="row"><span class="lbl">분해</span><input type="range" id="explode" min="0" max="100" value="0" aria-label="분해 정도"></div>
@@ -111,6 +118,7 @@ canvas#c { display: block; width: 100%; height: 100%; }
         <button class="chip" id="bHaz" aria-pressed="false">비상등</button><button class="chip" id="bDrive" aria-pressed="false">바퀴 돌리기</button>
       </div>
     </div>
+    <details class="controls" id="wireTable"><summary>배선표 전체 (연결하면 체크)</summary><table class="wt" id="wtAll"></table></details>
     <div class="controls" id="sigControls" hidden>
       <div class="row"><span class="lbl">신호</span>
         <button class="chip" id="bCycle" aria-pressed="true">road_signal.ino 순서로 켜기</button>
@@ -526,7 +534,6 @@ function buildCar() {
   dv.children.forEach((r, i) => { if (i < 2) r.children[0].material = resistor(new THREE.Group(), 0, 0, 0, 0, ["#6b3a1f", "#111", "#e07a10", "#c9a33a"]).children[0].material; });
   part({ no: "키트", name: "분압 저항 10kΩ ×3", spec: "Uno D11(5V) → ESP32 GPIO15(3.3V)" }, [[dv, V3(0, 0, 140)]]);
   buildWires(mount);
-  part({ no: "키트", name: "전선", spec: "보유 점퍼선 · 빨강 +7.4V · 검정 GND · 주황 5V" }, [[wiresG, V3(0, 0, 0)]]);
   buildSolder();
 }
 
@@ -562,51 +569,75 @@ function updateSolder(t) {
   });
 }
 let showRec = true;
+// 배선 묶음: [부품 이름, 주문 no, 한 줄 설명, 배선표 줄들 [부터, 까지, 선]]
+const WIRING = [
+  ["배선 ① 배터리 → L298N", "키트", "빨강·검정 2가닥 · 나사 단자", [
+    ["홀더 빨강(+)", "L298N 12V 단자", "빨강 (홀더 선 그대로)"], ["홀더 검정(−)", "L298N GND 단자", "검정 (홀더 선 그대로)"]]],
+  ["배선 ② L298N → Uno 전원", "키트", "VIN·GND 2가닥 · 윗판 Ø12 구멍 통과", [
+    ["L298N 12V 단자 (①과 같은 칸)", "Uno 전원 헤더 VIN", "빨강 수-수 점퍼"], ["L298N GND 단자 (①과 같은 칸)", "Uno 전원 헤더 GND", "검정 수-수 점퍼"]]],
+  ["배선 ③ L298N → MP1584 IN", "키트", "IN+·IN− 2가닥 · 납땜", [
+    ["L298N 12V 단자", "MP1584 IN+ (납땜)", "빨강"], ["L298N GND 단자", "MP1584 IN− (납땜)", "검정"]]],
+  ["배선 ④ MP1584 OUT → ESP32-CAM", "키트", "5V·GND 2가닥 · 기둥 뒤로", [
+    ["MP1584 OUT+ (납땜, 5.0V 맞춘 뒤)", "ESP32-CAM 5V 핀", "주황 수-암 점퍼"], ["MP1584 OUT− (납땜)", "ESP32-CAM GND 핀", "검정 수-암 점퍼"]]],
+  ["배선 ⑤ 모터 → L298N OUT", "1", "모터당 2가닥 · 아래판 Ø8 구멍", [
+    ["왼쪽 모터 빨강", "L298N OUT1", "모터 선"], ["왼쪽 모터 검정", "L298N OUT2", "모터 선"],
+    ["오른쪽 모터 검정", "L298N OUT3", "모터 선"], ["오른쪽 모터 빨강", "L298N OUT4", "모터 선"]]],
+  ["배선 ⑥ Uno → L298N 제어", "키트", "6가닥 · 암-암/수-암 점퍼", [
+    ["Uno D5", "L298N ENA (캡 뺀 앞쪽 핀)", "보라"], ["Uno D7", "L298N IN1", "초록"], ["Uno D8", "L298N IN2", "갈색"],
+    ["Uno D9", "L298N IN3", "연두"], ["Uno D10", "L298N IN4", "주황갈색"], ["Uno D6", "L298N ENB (캡 뺀 앞쪽 핀)", "연보라"]]],
+  ["배선 ⑦ Uno ↔ ESP32-CAM 통신", "키트", "2가닥 · D11 쪽은 분압 저항 경유", [
+    ["ESP32-CAM GPIO14 (보냄)", "Uno D12 (받음)", "분홍 점퍼, 저항 없음"], ["Uno D11 (보냄, 5V)", "10kΩ → ESP32-CAM GPIO15 (받음, 3.3V)", "회색 점퍼"],
+    ["ESP32-CAM GPIO15", "10kΩ → 10kΩ → GND", "분압 저항 (Uno 단계에서 이음)"]]],
+  ["배선 ⑧ 방향지시등", "키트", "LED 4개 · 노랑 신호 + 검정 GND", [
+    ["Uno D2", "220Ω → 왼쪽 앞·뒤 LED 긴 다리(+)", "노랑 (2개 병렬)"], ["Uno D3", "220Ω → 오른쪽 앞·뒤 LED 긴 다리(+)", "노랑 (2개 병렬)"],
+    ["LED 4개 짧은 다리(−)", "Uno GND (디지털 헤더 쪽)", "검정"]]],
+];
 function buildWires(mount) {
   const top = Z1 + 3 + 2.4 + 1.6, hdrTop = top + 2.5 + 12;
   const L = (x, y, z) => [LX + x, y, z];
   const RED = 0xd8312b, BLK = 0x1c1c1c, ORG = 0xf08a1c;
   const pt = v => [v.x, v.y, v.z];
-  // 배터리 → L298N 12V·GND (단자대 뒤쪽 구멍)
-  wire(wiresG, [[-56, 4, 60], [-50, 4, 52], [-38, -8, 49], L(-24, -14.08, top + 4), L(-21.6, -14.08, top + 4)], RED);
-  wire(wiresG, [[-56, -4, 60], [-50, -6, 51], [-36, -10, 49.5], L(-24, -9, top + 4), L(-21.6, -9, top + 4)], BLK);
-  // L298N 12V·GND → Uno VIN·GND (윗판 배선 구멍)
+  const g = WIRING.map(([name, no, spec]) => { const w = grp(wiresG); part({ no, name, spec }, [[w, V3(0, 0, 0)]]); return w; });
+  // ① 배터리 → L298N 12V·GND (단자대 뒤쪽 구멍)
+  wire(g[0], [[-56, 4, 60], [-50, 4, 52], [-38, -8, 49], L(-24, -14.08, top + 4), L(-21.6, -14.08, top + 4)], RED);
+  wire(g[0], [[-56, -4, 60], [-50, -6, 51], [-36, -10, 49.5], L(-24, -9, top + 4), L(-21.6, -9, top + 4)], BLK);
+  // ② L298N 12V·GND → Uno VIN·GND (윗판 배선 구멍)
   const vin = unoPin(PPIN.VIN, false), ugnd = unoPin(PPIN.GND2, false);
-  wire(wiresG, [L(-21.6, -14.08, top + 4.2), L(-27, -13, top + 9), [-26, 4, 68], [-20, 7, 78], [-26, 0, 92], [vin.x + 4, vin.y + 2, vin.z + 14], [vin.x, vin.y, vin.z + 10], [vin.x, vin.y, vin.z]], RED);
-  wire(wiresG, [L(-21.6, -9, top + 4.2), L(-27, -8, top + 10), [-24, 6, 68], [-20, 10, 78], [-28, 2, 94], [ugnd.x + 4, ugnd.y + 2, ugnd.z + 14], [ugnd.x, ugnd.y, ugnd.z + 10], [ugnd.x, ugnd.y, ugnd.z]], BLK);
-  // 12V·GND → MP1584 IN
-  wire(wiresG, [L(-21.6, -14.08, top + 3.8), L(-26, -12, top + 2), [-45, 24, 48], [-62, 30, 49], [-86, 52, 48], [-89, 48.8, 47.6]], RED);
-  wire(wiresG, [L(-21.6, -9, top + 3.8), L(-25, -6, top + 2), [-43, 22, 47.5], [-60, 28, 48], [-86, 37, 48], [-89, 41.2, 47.6]], BLK);
-  // MP1584 OUT → ESP32-CAM 5V·GND (기둥 뒤로 올라감)
+  wire(g[1], [L(-21.6, -14.08, top + 4.2), L(-27, -13, top + 9), [-26, 4, 68], [-20, 7, 78], [-26, 0, 92], [vin.x + 4, vin.y + 2, vin.z + 14], [vin.x, vin.y, vin.z + 10], [vin.x, vin.y, vin.z]], RED);
+  wire(g[1], [L(-21.6, -9, top + 4.2), L(-27, -8, top + 10), [-24, 6, 68], [-20, 10, 78], [-28, 2, 94], [ugnd.x + 4, ugnd.y + 2, ugnd.z + 14], [ugnd.x, ugnd.y, ugnd.z + 10], [ugnd.x, ugnd.y, ugnd.z]], BLK);
+  // ③ 12V·GND → MP1584 IN
+  wire(g[2], [L(-21.6, -14.08, top + 3.8), L(-26, -12, top + 2), [-45, 24, 48], [-62, 30, 49], [-86, 52, 48], [-89, 48.8, 47.6]], RED);
+  wire(g[2], [L(-21.6, -9, top + 3.8), L(-25, -6, top + 2), [-43, 22, 47.5], [-60, 28, 48], [-86, 37, 48], [-89, 41.2, 47.6]], BLK);
+  // ④ MP1584 OUT → ESP32-CAM 5V·GND (기둥 뒤로 올라감)
   for (const [name, y0, c] of [["5V", 48.8, ORG], ["GND", 41.2, BLK]]) {
     const e = espPin(name), xb = mount.xf - 7.5;
-    wire(wiresG, [[-71, y0, 47.6], [-64, y0 + 4, 49], [-40, 30, 49], [-14, 24, 48], [xb - 6, 14, 49], [xb, 11 + (c === ORG ? 1.5 : 0), 60], [xb, 11 + (c === ORG ? 1.5 : 0), e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c);
+    wire(g[3], [[-71, y0, 47.6], [-64, y0 + 4, 49], [-40, 30, 49], [-14, 24, 48], [xb - 6, 14, 49], [xb, 11 + (c === ORG ? 1.5 : 0), 60], [xb, 11 + (c === ORG ? 1.5 : 0), e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c);
   }
-  // 모터 → L298N OUT (Ø8 구멍으로 올라옴)
+  // ⑤ 모터 → L298N OUT (Ø8 구멍으로 올라옴)
   for (const s of [1, -1]) {
-    wire(wiresG, [[-60.8, s * 52, WR + 4], [-64, s * 46, 38], [-62, s * 40, 44], [-62, s * 40, 50], [-30, s * 30, 52], L(.46, s * 24.5, top + 4), L(.46, s * 21.6, top + 4)], s > 0 ? RED : BLK);
-    wire(wiresG, [[-60.8, s * 60, WR + 4], [-66, s * 48, 38], [-62.5, s * 41, 44], [-62.5, s * 41, 51], [-28, s * 32, 53], L(5.54, s * 24.5, top + 4), L(5.54, s * 21.6, top + 4)], s > 0 ? BLK : RED);
+    wire(g[4], [[-60.8, s * 52, WR + 4], [-64, s * 46, 38], [-62, s * 40, 44], [-62, s * 40, 50], [-30, s * 30, 52], L(.46, s * 24.5, top + 4), L(.46, s * 21.6, top + 4)], s > 0 ? RED : BLK);
+    wire(g[4], [[-60.8, s * 60, WR + 4], [-66, s * 48, 38], [-62.5, s * 41, 44], [-62.5, s * 41, 51], [-28, s * 32, 53], L(5.54, s * 24.5, top + 4), L(5.54, s * 21.6, top + 4)], s > 0 ? BLK : RED);
   }
-  // Uno D5 D7 D8 D9 D10 D6 → ENA IN1 IN2 IN3 IN4 ENB (점퍼선)
+  // ⑥ Uno D5 D7 D8 D9 D10 D6 → ENA IN1 IN2 IN3 IN4 ENB (점퍼선)
   const jc = [0x8e44ad, 0x27ae60, 0x8d5524, 0x2ecc71, 0xa0522d, 0x9b59b6];
   [5, 7, 8, 9, 10, 6].forEach((d, i) => {
     const pin = unoPin(DPIN[d], true), hy = 3 + i * 2.54, hx = LX - 19.5;
-    dupont(wiresG, pin.x, pin.y, pin.z - 6); dupont(wiresG, hx, hy, top + 2.5);
-    wire(wiresG, [[pin.x, pin.y, pin.z + 6], [pin.x, pin.y, pin.z + 12], [pin.x + 18, 18 - i, pin.z + 10], [-21, 7 + i * .7, 82], [-20.5, 7 + i * .7, 77], [hx + 1, hy, hdrTop + 8], [hx, hy, hdrTop]], jc[i], .6);
+    dupont(g[5], pin.x, pin.y, pin.z - 6); dupont(g[5], hx, hy, top + 2.5);
+    wire(g[5], [[pin.x, pin.y, pin.z + 6], [pin.x, pin.y, pin.z + 12], [pin.x + 18, 18 - i, pin.z + 10], [-21, 7 + i * .7, 82], [-20.5, 7 + i * .7, 77], [hx + 1, hy, hdrTop + 8], [hx, hy, hdrTop]], jc[i], .6);
   });
-  // ESP32 GPIO14 → D12, D11 → 분압 → GPIO15
+  // ⑦ ESP32 GPIO14 → D12, D11 → 분압 → GPIO15
   for (const [io, d, c, rx] of [["IO14", 12, 0xe377c2, 0], ["IO15", 11, 0x9aa0a6, 1]]) {
     const pin = unoPin(DPIN[d], true), e = espPin(io), xb = mount.xf - 8.5;
-    dupont(wiresG, pin.x, pin.y, pin.z - 6);
+    dupont(g[6], pin.x, pin.y, pin.z - 6);
     const via = rx ? [[-30, -20, Z2 + 6], [-12, -24, Z2 + 6]] : [];
-    wire(wiresG, [[pin.x, pin.y, pin.z + 6], [pin.x, pin.y, pin.z + 12], [pin.x + 20, pin.y - 6, pin.z + 6], ...via, [-4, rx ? -8 : 6, Z2 + 8], [xb, rx ? -6 : 7, Z2 + 14], [xb, rx ? -6 : 7, e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c, .6);
+    wire(g[6], [[pin.x, pin.y, pin.z + 6], [pin.x, pin.y, pin.z + 12], [pin.x + 20, pin.y - 6, pin.z + 6], ...via, [-4, rx ? -8 : 6, Z2 + 8], [xb, rx ? -6 : 7, Z2 + 14], [xb, rx ? -6 : 7, e.z - 16], pt(e.clone().sub(U.clone().multiplyScalar(4))), pt(e)], c, .6);
   }
-  // 방향지시등: 노랑 = D2/D3, 검정 = GND
+  // ⑧ 방향지시등: 노랑 = D2/D3, 검정 = GND
   for (const [k, x, y] of [["Lf", 58, 58], ["Lr", -145, 58], ["Rf", 58, -58], ["Rr", -145, -58]]) {
-    const pin = unoPin(DPIN[y > 0 ? 2 : 3], true), g = unoPin(DPIN.GND, true), sx = Math.sign(x), sy = Math.sign(y);
+    const pin = unoPin(DPIN[y > 0 ? 2 : 3], true), gn = unoPin(DPIN.GND, true), sx = Math.sign(x), sy = Math.sign(y);
     const r0 = [x - sx * 18.5, y - sy * 6, Z1 + 4.4];
-    wire(wiresG, [r0, [r0[0] - sx * 6, y - sy * 10, Z1 + 4.5], [-60, sy * 47, Z1 + 5], [-60, sy * 47, Z2 - 4], [pin.x + 10, sy * 46, Z2 + 8], [pin.x, pin.y + 1, pin.z + 16], [pin.x, pin.y, pin.z + 6]], 0xe8b10f, .55);
-    wire(wiresG, [[x + 1.27, y, Z1 + 3.5], [x - sx * 4, y - sy * 2, Z1 + 4.5], [-66, sy * 50, Z1 + 5], [-66, sy * 50, Z2 - 4], [g.x + 10, sy * 48, Z2 + 8], [g.x, g.y + 1, g.z + 16], [g.x, g.y, g.z + 6]], BLK, .55);
+    wire(g[7], [r0, [r0[0] - sx * 6, y - sy * 10, Z1 + 4.5], [-60, sy * 47, Z1 + 5], [-60, sy * 47, Z2 - 4], [pin.x + 10, sy * 46, Z2 + 8], [pin.x, pin.y + 1, pin.z + 16], [pin.x, pin.y, pin.z + 6]], 0xe8b10f, .55);
+    wire(g[7], [[x + 1.27, y, Z1 + 3.5], [x - sx * 4, y - sy * 2, Z1 + 4.5], [-66, sy * 50, Z1 + 5], [-66, sy * 50, Z2 - 4], [gn.x + 10, sy * 48, Z2 + 8], [gn.x, gn.y + 1, gn.z + 16], [gn.x, gn.y, gn.z + 6]], BLK, .55);
   }
 }
 
@@ -707,45 +738,67 @@ function setExplode(t) {
 
 // ───────────────────────── 조립 순서 (부품 이름 앞부분으로 찾음)
 const STEPS = [
-  { t: "차체판 자르기", p: ["아래판"], tools: "칼 · 쇠자 · 3mm 드릴(공작실)",
-    d: "MDF 클립보드(16번)의 집게를 떼고 1:1 도안을 대어 아래판 217.5×135 를 자름. 칼로 여러 번 긋거나 실톱. 서포트·LED·모터선·L298N·캐스터 구멍을 뚫음. 모터 고정 구멍은 2단계에서 실물을 대고 표시." },
-  { t: "모터에 고정판 달기", p: ["TT 모터", "모터 고정판"], tools: "드라이버 · 송곳 (키트 나사 포함)",
-    d: "키트 고정판을 모터 안쪽 면에 대고 긴 나사 2개를 모터 구멍에 관통 → 너트. 바퀴 중심이 바퀴축 선(뒤에서 152.5)에 오게 모터를 판 밑에 대 보고 고정 위치를 표시 → 구멍을 뚫어 나사로, 또는 순간접착제로 고정. 모터 선은 이미 달려 나옴 (납땜 없음)." },
-  { t: "바퀴 끼우기", p: ["바퀴"], tools: "손",
-    d: "바퀴 가운데 D자 구멍을 모터 바깥쪽 흰 축에 끝까지 밀어 넣음. 두 바퀴 중심 사이 165mm 인지 자로 확인." },
+  { t: "차체판 자르기 · 구멍 뚫기", p: ["아래판"], tools: "칼 · 쇠자 · 송곳 · 3mm·5mm·8mm 드릴(공작실) · 사포",
+    d: "① MDF 클립보드(16번) 집게의 리벳을 드릴로 따서 떼어 냄. ② 조립설계도 3쪽 1:1 도안을 100% 로 출력해 판에 테이프로 붙임. ③ 쇠자를 대고 칼로 같은 선을 6~8번 그어 꺾어 자름 → 217.5×135. ④ 도안 위에서 송곳으로 구멍 중심을 찍고 뚫음: 서포트 4·L298N 4·캐스터 2·홀더 2 = Ø3.2, LED 4 = Ø5, 모터선 2 = Ø8. ⑤ 사포로 모서리 정리. 모터 고정 구멍은 2단계에서 실물을 대고 표시." },
+  { t: "모터에 고정판 달기", p: ["TT 모터", "모터 고정판"], tools: "드라이버 · 송곳 · 펜 (키트 나사 포함)",
+    d: "① 모터 2개의 선(빨강·검정)이 풀리지 않았는지 확인. ② 키트 아크릴 고정판을 모터 안쪽 면에 대고 긴 M3 나사 2개를 모터 몸통 구멍에 관통 → 반대편 너트를 손으로 조임 (세게 조이면 기어박스가 휘어 뻑뻑해짐). ③ 판을 뒤집어 고정판 눕힌 면을 아래판 밑면에 대고, 바퀴축(흰 축)이 뒤 끝에서 152.5mm 선에 오게 맞춤. ④ 펜으로 고정판 구멍을 표시 → 3mm 로 뚫고 M3 나사·너트로 고정 (구멍이 안 맞으면 순간접착제 + 나사 1개). ⑤ 모터선은 Ø8 구멍으로 판 위로 올려 둠." },
+  { t: "바퀴 끼우기", p: ["바퀴"], tools: "손 · 자",
+    d: "바퀴 가운데 D자 구멍을 모터 바깥쪽 흰 축의 평평한 면에 맞춰 끝까지 밀어 넣음 (돌리면서 누르면 들어감). 두 바퀴 중심 사이 165mm, 바퀴가 판 옆면에 닿지 않는지 확인. 손으로 돌려 걸리는 곳이 없어야 함." },
   { t: "볼캐스터 달기", p: ["볼캐스터"], tools: "3mm 드릴 · 드라이버",
-    d: "캐스터 고정 구멍(M2)을 3mm 로 넓힘 → 서포트(14·15번)를 겹쳐 아래판 밑면 뒤쪽에. 평평한 책상에서 판이 수평(밑면 높이 42mm)이 되게 서포트 길이를 20+6mm 등으로 조합." },
-  { t: "배터리 홀더", p: ["18650 홀더"], tools: "드라이버",
-    d: "홀더 바닥 구멍에 M3 볼트로 아래판 뒤쪽에 고정 (캐스터 나사 머리 위). 빨강·검정 선이 앞(L298N 쪽)을 보게. 아직 배터리는 넣지 않음." },
-  { t: "L298N 달기", p: ["L298N"], tools: "드라이버",
-    d: "6mm 플라스틱 서포트 4개로 띄워 고정. 방열판이 앞, 파란 전원 단자와 6핀 헤더가 뒤. ENA·ENB 점퍼 캡을 뽑아 둠." },
-  { t: "MP1584 납땜 → 5.0V 맞추기", p: ["MP1584"], tools: "★ 인두기·납 · 테스터(21번)", hot: true, solder: "must", dir: [-.25, 1.3, -.8],
-    d: "IN+ (빨강) · IN− (검정) · OUT+ (주황) · OUT− (검정) 구멍에 점퍼선 한쪽 끝을 꽂고 납땜 4곳. 배터리를 IN 에 물리고 테스터로 OUT 을 재며 가변저항을 돌려 5.0V. 그다음 양면테이프로 붙임." },
+    d: "① 캐스터 고정 구멍(M2)을 3mm 드릴로 넓힘. ② M3 서포트(14·15번)를 이어 붙여 길이 약 30mm 를 만듦 (20+10 또는 15+15). ③ 캐스터 → 서포트 → 아래판 밑면 뒤쪽 구멍 2개 순서로 나사 고정. ④ 책상 위에 놓고 판이 수평(밑면 높이 42mm)인지 확인, 기울면 서포트 길이를 6mm 단위로 바꿈." },
+  { t: "배터리 홀더", p: ["18650 홀더"], tools: "드라이버 · M3 볼트·너트",
+    d: "홀더 바닥 구멍 2개에 M3 볼트를 넣어 아래판 뒤쪽에 너트로 고정 (볼트 머리가 홀더 안쪽에 오게, 배터리가 볼트에 닿지 않는지 확인). 빨강·검정 선이 앞(L298N 쪽)을 보게. 스위치는 OFF. 배터리는 마지막 시험 단계까지 넣지 않음." },
+  { t: "L298N 달기", p: ["L298N"], tools: "드라이버 · 6mm 플라스틱 서포트 4개(15번)",
+    d: "① 플라스틱 서포트 6mm 4개를 아래판 L298N 구멍에 너트로 세움. ② L298N 을 얹고 나사 4개. 방열판이 앞, 파란 3칸 전원 단자(12V·GND·5V)와 6핀 헤더(ENA·IN1~4·ENB)가 뒤. ③ ENA·ENB 의 검정 점퍼 캡 2개를 뽑아 둠 (잃어버려도 됨). 12V 옆 '5V EN' 점퍼 캡은 그대로." },
+  { t: "MP1584 납땜 → 5.0V 맞추기", p: ["MP1584"], tools: "★ 인두기·납 · 테스터(21번) · 작은 일자 드라이버", hot: true, solder: "must", dir: [-.25, 1.3, -.8],
+    d: "① 점퍼선 4개의 한쪽 커넥터를 잘라 피복을 5mm 벗기고 꼬아 둠. ② IN+ 빨강 · IN− 검정 · OUT+ 주황 · OUT− 검정을 구멍에 꽂고 뒷면에서 납땜 4곳 (구멍이 납으로 덮이면 됨, 옆 패드와 붙지 않게). ③ IN 을 배터리에 임시로 물리고 테스터 DC 20V 로 OUT+·OUT− 를 재며 파란 가변저항 나사를 조금씩 돌려 5.0V 에 맞춤 (처음엔 5V 보다 높게 나올 수 있음). ④ 배터리를 떼고 양면테이프로 배터리 홀더 옆에 붙임." },
   { t: "방향지시등 LED + 220Ω", p: ["방향지시등"], tools: "인두기(권장) 또는 절연테이프", solder: "rec", dir: [.15, 1.4, .45],
-    d: "키트 노랑 LED 4개를 모서리 Ø5 구멍에 꽂음. 긴 다리(+)에 220Ω 을 이어 납땜 (또는 꼬아서 절연테이프). 짧은 다리(−)는 GND 선." },
-  { t: "카메라 기둥·쐐기·카메라판", p: ["카메라 기둥"], tools: "순간접착제(24번)",
-    d: "MDF 기둥 2장을 겹쳐 붙여 세우고 뒤에 받침 2개. 맨 위 앞면에 30° 쐐기 → 카메라판 → 암 헤더 2줄을 붙임." },
-  { t: "ESP32-CAM + 광각 렌즈", p: ["ESP32-CAM"], tools: "손 (업로드는 MB 보드로 먼저)",
-    d: "기본 카메라를 빼고 160° 렌즈(5번) FPC 를 끼움. 코드를 MB 보드로 먼저 올린 뒤, CAM 보드만 카메라판 헤더에 꽂음. 렌즈 높이 바닥에서 150mm 확인." },
-  { t: "서포트 + 윗판", p: ["황동 서포트", "윗판"], tools: "드라이버",
-    d: "30mm 황동 서포트 4개를 아래판에 세우고 윗판(145×100)을 얹어 나사로 고정. 배선 구멍(Ø12)이 앞쪽 가운데." },
+    d: "① 노랑 LED 4개를 네 모서리 Ø5 구멍에 아래에서 위로 꽂음 (머리가 판 위로). ② 긴 다리(+)에 220Ω 한쪽을 꼬아 납땜 → 저항 반대쪽에 노랑 선. ③ 짧은 다리(−)에 검정 선. ④ 이음부를 절연테이프로 감아 다리끼리 닿지 않게. 선 끝은 아직 아무 데도 꽂지 않음 (⑧ 배선에서)." },
+  { t: "카메라 기둥·쐐기·카메라판", p: ["카메라 기둥"], tools: "칼 · 순간접착제(24번) · 각도기",
+    d: "① 조립설계도 도안대로 MDF 에서 기둥 2장·받침 2개·30° 쐐기·카메라판을 자름. ② 기둥 2장을 겹쳐 붙여 두께 6mm. ③ 아래판 앞쪽 표시 위치에 세우고 뒤에 받침 2개를 붙여 흔들리지 않게. ④ 기둥 맨 위 앞면에 쐐기 → 카메라판 순서로 붙임 (카메라판이 아래로 30°). ⑤ 카메라판에 암 헤더 2줄(8핀) 간격을 ESP32-CAM 에 맞춰 붙임 — CAM 보드를 꽂은 채로 붙이면 정확함." },
+  { t: "ESP32-CAM + 광각 렌즈", p: ["ESP32-CAM"], tools: "손 · 노트북 (업로드는 MB 보드로 먼저)",
+    d: "① 검정 FPC 고정 걸쇠를 올리고 기본 카메라를 빼서 160° 렌즈(5번) 케이블을 금색 접점이 보드 쪽으로 끝까지 꽂고 걸쇠를 내림. ② MB 보드에 꽂아 USB 로 코드 업로드, 화면 확인. ③ MB 에서 CAM 보드만 빼서 카메라판 헤더에 꽂음 (안테나가 위). 렌즈 높이 바닥에서 약 150mm." },
+  { t: "서포트 + 윗판", p: ["황동 서포트", "윗판"], tools: "드라이버 · M3×30 황동 서포트 4개(14번)",
+    d: "① 황동 서포트 4개를 아래판 모서리 구멍에 밑에서 나사로 세움. ② 윗판(145×100)의 Uno 구멍 4개·배선 구멍 Ø12 를 미리 뚫어 둠. ③ 윗판을 얹고 위에서 나사 4개. 배선 구멍(Ø12)이 앞쪽 가운데, L298N 헤더 바로 위에 오게." },
   { t: "Uno + 분압 저항", p: ["Arduino Uno", "분압 저항"], tools: "드라이버 · 인두기(권장)", solder: "rec", dir: [.5, 1.2, .5],
-    d: "Uno 를 6mm 서포트로 윗판에 고정, USB 가 뒤. 10kΩ 3개를 D11 → 10k → GPIO15, GPIO15 → 10k → 10k → GND 로 이음 (납땜 또는 꼬아서 테이프)." },
-  { t: "배선", p: ["전선"], tools: "점퍼선 · 드라이버",
-    d: "배선표 순서: 배터리 → L298N 12V·GND → Uno VIN·GND → MP1584 IN. MP1584 OUT → ESP32 5V·GND. Uno D5·D7·D8·D9·D10·D6 → ENA·IN1·IN2·IN3·IN4·ENB. 모터선 → OUT1~4. GPIO14 → D12. LED → D2·D3." },
+    d: "① Uno 를 플라스틱 서포트 6mm 로 윗판에 고정, USB·DC 잭이 뒤 (노트북 연결이 쉬움). ② 10kΩ 3개: 저항 A 한쪽 = D11 로 갈 선, 다른 쪽 = ESP32 GPIO15 로 갈 선. 그 GPIO15 쪽에 저항 B → 저항 C → GND 로 갈 선 (B·C 직렬 = 20k). ③ 이음 3곳 납땜 또는 꼬아서 테이프. 판에 양면테이프로 붙임." },
+  { t: "배선 ① 배터리 → L298N", p: ["배선 ①"], tools: "작은 십자 드라이버", dir: [-.4, 1.3, .5],
+    d: "배터리 홀더 스위치 OFF 확인. L298N 파란 단자 나사를 풀고 홀더 빨강을 12V, 검정을 GND 칸에 끝까지 넣고 조임. 선을 살짝 당겨 빠지지 않는지 확인. ※ 12V 칸과 GND 칸에는 ②·③ 의 선도 같이 들어가므로 피복 끝을 서로 꼬아서 한 번에 넣으면 편함." },
+  { t: "배선 ② L298N → Uno 전원", p: ["배선 ②"], tools: "드라이버 · 수-수 점퍼 2",
+    d: "빨강 점퍼 한쪽 커넥터를 잘라 피복을 벗기고 L298N 12V 칸에, 반대쪽 핀을 Uno 전원 헤더 VIN 에. 검정은 GND 칸 → Uno 전원 헤더 GND (VIN 바로 옆). 두 선은 윗판 Ø12 구멍으로 통과. ※ 5V 핀에 꽂지 않도록 주의 — VIN 은 7~12V 입력." },
+  { t: "배선 ③ L298N → MP1584 IN", p: ["배선 ③"], tools: "드라이버",
+    d: "MP1584 에 납땜해 둔 IN+ 빨강을 L298N 12V 칸, IN− 검정을 GND 칸에 함께 물림 (①·② 선과 같은 칸). 단자 하나에 선 3가닥이 들어가므로 꼬아서 넣고 단단히 조임." },
+  { t: "배선 ④ MP1584 OUT → ESP32-CAM", p: ["배선 ④"], tools: "수-암 점퍼 2", dir: [-.6, .9, .6],
+    d: "OUT+ 주황 → ESP32-CAM 5V 핀, OUT− 검정 → ESP32-CAM GND 핀 (5V 바로 옆). 선은 카메라 기둥 뒤로 올려 테이프로 고정. ※ 꽂기 전에 OUT 이 5.0V 인지 다시 재기 — 3.3V 핀에 꽂으면 보드가 망가짐." },
+  { t: "배선 ⑤ 모터 → L298N OUT", p: ["배선 ⑤"], tools: "드라이버", dir: [.2, 1.2, .9],
+    d: "판 아래에서 Ø8 구멍으로 올라온 모터선을 L298N 옆 초록 단자에: 왼쪽 모터 빨강 → OUT1, 검정 → OUT2, 오른쪽 모터 검정 → OUT3, 빨강 → OUT4 (두 모터가 마주 보고 붙어 있어 오른쪽은 반대로). 시험 때 반대로 돌면 그 모터 두 선만 맞바꿈." },
+  { t: "배선 ⑥ Uno → L298N 제어", p: ["배선 ⑥"], tools: "수-암 점퍼 6",
+    d: "L298N 뒤 6핀 헤더 (왼쪽부터 ENA · IN1 · IN2 · IN3 · IN4 · ENB) ← Uno D5 · D7 · D8 · D9 · D10 · D6. ENA·ENB 는 캡을 뺀 2핀 중 바깥(앞쪽) 핀. 선 6가닥을 Ø12 구멍으로 함께 내리고 케이블 타이나 테이프로 묶음." },
+  { t: "배선 ⑦ Uno ↔ ESP32-CAM 통신", p: ["배선 ⑦"], tools: "점퍼 2 · 분압 저항(12단계)", dir: [.4, 1.1, -.6],
+    d: "ESP32-CAM GPIO14 → Uno D12 (저항 없이 바로). Uno D11 → 분압 저항 A → ESP32-CAM GPIO15, 저항 C 끝 → Uno GND. ESP32 는 3.3V 라 Uno 의 5V 신호를 그대로 넣으면 안 됨 — GPIO15 에서 재면 약 3.3V 여야 정상." },
+  { t: "배선 ⑧ 방향지시등", p: ["배선 ⑧"], tools: "점퍼 · 테이프", dir: [.3, 1.4, .3],
+    d: "왼쪽 앞·뒤 LED 의 노랑(저항 쪽) 2가닥을 꼬아 한 점퍼로 Uno D2, 오른쪽 2가닥은 D3. 검정 4가닥을 꼬아 Uno GND (D13 옆 GND). 아래판 가장자리를 따라 테이프로 고정해 바퀴에 끌리지 않게." },
   { t: "시험", p: [], tools: "테스터 · 노트북",
-    d: "배터리 넣기 전 테스터로 +7.4V 와 GND 가 붙어 있지 않은지(합선) 확인. 바퀴를 들고 앞으로 명령 → 둘 다 앞으로 도는지 (반대면 OUT 두 선 맞바꿈). 깜빡이 좌·우·비상, ESP32-CAM 영상 확인." },
+    d: "① 배터리 넣기 전 테스터 저항(Ω)/통전 모드로 L298N 12V 칸 ↔ GND 칸이 붙어 있지 않은지(합선) 확인. ② 18650 2개를 +/− 방향 맞게 넣고 스위치 ON → Uno·L298N 빨간 LED 켜짐, ESP32-CAM 5V 핀 5.0V. ③ 바퀴를 들고 앞으로 명령 → 두 바퀴가 앞으로 돌면 OK (반대면 그 모터 OUT 두 선 맞바꿈). ④ 깜빡이 좌·우·비상, ESP32-CAM 영상 확인. 끝나면 스위치 OFF." },
 ];
 let stepMode = false, cur = 0, stepT0 = 0;
 function stepOf(p) { const i = STEPS.findIndex(s => s.p.some(n => p.name.startsWith(n))); return i < 0 ? 0 : i; }
+const wRows = (rows, check) => rows.map(([f, t, c]) => `<tr>${check ? "<td><input type=checkbox aria-label=연결함></td>" : ""}<td>${f} → ${t}</td><td>${c}</td></tr>`).join("");
+function fillWireTable() {
+  $("wtAll").innerHTML = WIRING.map(([n, , , rows]) => `<tr><th colspan=3>${n}</th></tr>` + wRows(rows, true)).join("") +
+    "<tr><td colspan=3>모든 GND(배터리 −, L298N, Uno, MP1584, ESP32-CAM, LED) 가 한 점으로 이어지는지 테스터로 확인.</td></tr>";
+  $("wtAll").querySelectorAll("tr").forEach(r => r.onclick = e => { const c = r.querySelector("input"); if (c && e.target !== c) c.checked = !c.checked; });
+}
 function applyStep(animate = true) {
   const st = STEPS[cur];
   $("stepNo").textContent = `${cur + 1} / ${STEPS.length} 단계`;
   $("stepTitle").textContent = st.t; $("stepText").textContent = st.d;
   $("stepTools").textContent = "필요: " + st.tools; $("stepTools").className = "tools" + (st.hot ? " hot" : "");
+  const wg = WIRING.find(w => st.p.some(n => w[0].startsWith(n)));
+  $("stepWires").hidden = !wg; $("stepWires").innerHTML = wg ? wRows(wg[3], false) : "";
   $("bPrev").disabled = cur === 0; $("bNext").disabled = cur === STEPS.length - 1;
   parts.filter(p => !p.tab).forEach(p => { const k = stepOf(p); p.objs.forEach(([o]) => o.visible = k <= cur); });
-  wiresG.visible = stepOf(parts.find(p => p.name === "전선")) <= cur;
+  wiresG.visible = true;
   solderG.visible = !!st.solder || $("tSolder").getAttribute("aria-pressed") === "true"; showRec = st.solder !== "must";
   stepT0 = animate ? performance.now() : 0;
   const now = parts.filter(p => !p.tab && st.p.some(n => p.name.startsWith(n)));
@@ -817,7 +870,7 @@ function setTab(t) {
   if (stepMode) { toggle($("bSteps"), false); setSteps(false); }
   tab = t; car.visible = t === "car"; sig.visible = t === "sig"; selected = null; select(null);
   $("tabCar").setAttribute("aria-selected", t === "car"); $("tabSig").setAttribute("aria-selected", t === "sig");
-  $("carControls").hidden = t !== "car"; $("sigControls").hidden = t !== "sig"; $("phase").hidden = t !== "sig";
+  $("carControls").hidden = $("wireTable").hidden = t !== "car"; $("sigControls").hidden = t !== "sig"; $("phase").hidden = t !== "sig";
   view("iso");
 }
 $("tabCar").onclick = () => setTab("car"); $("tabSig").onclick = () => setTab("sig");
@@ -865,7 +918,7 @@ function loop() {
 
 (async () => {
   try { await Promise.all([document.fonts.load('600 12px "IBM Plex Mono"'), document.fonts.load('700 12px "IBM Plex Sans KR"')]); } catch (e) {}
-  buildCar(); buildSignal(); finishParts();
+  buildCar(); buildSignal(); finishParts(); fillWireTable();
   car.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
   resize(); renderList();
   camera.position.copy(carCenter()).add(VIEWS.iso.clone().normalize().multiplyScalar(520)); controls.target.copy(carCenter());
