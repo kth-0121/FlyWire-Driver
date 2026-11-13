@@ -15,7 +15,7 @@ html, body { height: 100%; }
 [hidden] { display: none !important; }
 body { background: var(--bg); color: var(--fg); font-family: var(--sans); overflow: hidden; }
 #app { position: relative; height: 100%; display: grid; grid-template-columns: 340px 1fr; }
-#panel { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+#panel { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; }
 #panel header { padding: 18px 18px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
 h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
 .sub { color: var(--dim); font-size: 12px; line-height: 1.5; }
@@ -29,7 +29,8 @@ button.chip { padding: 6px 10px; border: 1px solid var(--line); background: #252
 button.chip[aria-pressed="true"] { border-color: var(--hl); color: var(--hl); background: #1f3a2f; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
-#parts { overflow-y: auto; flex: 1; min-height: 0; padding: 6px 10px 18px; }
+#parts { flex: none; padding: 6px 10px 18px; }
+#panel > * { flex: none; }
 .part { display: grid; grid-template-columns: 34px 1fr; gap: 2px 10px; padding: 9px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
 .part:hover { background: #242b30; }
 .part.sel { border-color: var(--hl); background: #1f3129; }
