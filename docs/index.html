@@ -141,7 +141,7 @@ function M(name, color, o = {}) {
   return MATS[name] || (MATS[name] = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: .6, metalness: 0 }, o)));
 }
 const mat = {
-  foamex: () => M("foamex", 0xf1f1ec, { roughness: .95 }),
+  foamex: () => M("foamex", 0xc29a6b, { roughness: .9 }),   // MDF 3mm
   black: () => M("black", 0x1b1c1e, { roughness: .55 }),
   plastic: () => M("plastic", 0x2a2b2d, { roughness: .45 }),
   silver: () => M("silver", 0xcfd3d6, { metalness: .9, roughness: .28 }),
@@ -261,11 +261,12 @@ function ttMotor(p, side) {           // 원점 = 출력축 중심. 기어박스
   cylY(g, 2.7, 4, mat.white(), 0, -side * 13.2, 0, 16);
   return g;
 }
-function lBracket(p, side) {          // 알루미늄 2mm L 브라켓: 세운 면이 모터 안쪽, 눕힌 면이 판 밑
+function lBracket(p, side) {          // 모터 고정판 (Keyestudio 키트 아크릴): 세운 면이 모터 안쪽, 눕힌 면이 판 밑
   const g = grp(p);
   const y = side * (56 - 11.25 - 1);
-  box(g, 30, 2, 19, mat.alu(), -23, y, 23 + 9.5);
-  box(g, 30, 16, 2, mat.alu(), -23, side * (44.75 - 8), Z1 - 1);
+  const ac = M("acryl", 0x1c1c1c, { roughness: .25 });
+  box(g, 30, 3, 19, ac, -23, y, 23 + 9.5);
+  box(g, 30, 16, 3, ac, -23, side * (44.75 - 8), Z1 - 1);
   for (const x of [-14, -28]) { cylY(g, 2.6, 1.6, mat.steel(), x, side * (56 + 12.2), WR + 4.5, 18); cylY(g, 1.5, 27, mat.steel(), x, side * 55, WR + 4.5, 10); hexNut(g, x, side * 42, WR + 4.5).rotation.set(0, 0, 0); }
   for (const x of [-34, -12]) { screwHead(g, x, side * 36.75, Z1 - 2, -1); hexNut(g, x, side * 36.75, Z1 + 3 + 1.2); }
   return g;
@@ -427,7 +428,7 @@ function espCam(p) {
   for (const x of [-12.2, 12.2]) { const h = grp(g, x, -18.9, -.5); h.rotation.z = PI / 2; maleHeader(h, 8, 0, 0, 0, 2.54, 8.5, -1); }
   return g;
 }
-function camMount(p) {                 // 카메라판 + 암 헤더 + 30° 쐐기 + 기둥 (포맥스)
+function camMount(p) {                 // 카메라판 + 암 헤더 + 30° 쐐기 + 기둥 (MDF)
   const g = grp(p);
   const plateG = grp(g); plateG.matrixAutoUpdate = false; plateG.matrix.copy(camBasis).setPosition(CAM_C);
   box(plateG, 27, 26, 3, mat.foamex(), 0, -7, -13);
@@ -492,16 +493,16 @@ function buildCar() {
   const pb = plate(car, -R, F, -W / 2, W / 2, bottomHoles, Z1);
   const upHoles = [...STANDOFFS.map(([x, y]) => [x, y, 3.2]), ...UNO_HOLES.map(([x, y]) => [UNO0[0] + x, UNO0[1] + y, 3.2]), [-20, 9, 12]];
   const pu = plate(car, -145, 0, -50, 50, upHoles, Z2);
-  part({ no: "16", name: "아래판", spec: "포맥스 3T · 217.5×135 · 밑면 높이 42" }, [[pb, V3(0, 0, 0)]]);
-  part({ no: "16", name: "윗판", spec: "포맥스 3T · 145×100 · 서포트 30mm 위" }, [[pu, V3(0, 0, 90)]]);
+  part({ no: "16", name: "아래판", spec: "MDF 3mm (A4 클립보드) · 217.5×135 · 밑면 높이 42" }, [[pb, V3(0, 0, 0)]]);
+  part({ no: "16", name: "윗판", spec: "MDF 3mm (A4 클립보드) · 145×100 · 서포트 30mm 위" }, [[pu, V3(0, 0, 90)]]);
   const so = grp(car);
   STANDOFFS.forEach(([x, y]) => { add(so, new THREE.CylinderGeometry(3.2, 3.2, 30, 6), mat.brass(), x, y, Z1 + 3 + 15, PI / 2, 0, 0);
     screwHead(so, x, y, Z2 + 3, 1); screwHead(so, x, y, Z1, -1); });
   part({ no: "14", name: "황동 서포트 ×4", spec: "M3×30 육각 · 위아래 나사" }, [[so, V3(0, 0, 45)]]);
   for (const s of [1, -1]) {
     const side = s > 0 ? "왼쪽" : "오른쪽";
-    part({ no: "1", name: `TT 모터 (${side})`, spec: "아이씨뱅큐 D19-1 · 1:48 양축 200RPM · 70×22.5×18.8" }, [[ttMotor(car, s), V3(0, s * 30, -35)]]);
-    part({ no: "17", name: `L 브라켓 (${side})`, spec: "알루미늄 2mm · M3 25mm 나사 2개로 모터 고정" }, [[lBracket(car, s), V3(0, s * 12, -18)]]);
+    part({ no: "1", name: `TT 모터 (${side})`, spec: "Keyestudio 모터 휠 키트 (4개 중 2개) · 1:48 양축 · 70×22.5×18.8" }, [[ttMotor(car, s), V3(0, s * 30, -35)]]);
+    part({ no: "1", name: `모터 고정판 (${side})`, spec: "키트 포함 아크릴 · 긴 M3 나사 2개로 모터 관통 · 판 밑 고정 방식은 실물 보고 결정" }, [[lBracket(car, s), V3(0, s * 12, -18)]]);
     part({ no: "1", name: `바퀴 (${side})`, spec: "Ø65 고무 · 폭 26 · 바퀴 중심 y ±82.5" }, [[wheel(car, s), V3(0, s * 70, -35)]]);
   }
   const cs = grp(car, -125, 0, 0);
@@ -515,7 +516,7 @@ function buildCar() {
   part({ no: "키트", name: "Arduino Uno", spec: "68.6×53.3 · USB 뒤 · M3 나사 + 너트 2개" }, [[unoBoard(car), V3(0, 0, 140)]]);
   const esp = espCam(car), mount = camMount(car);
   part({ no: "4·5", name: "ESP32-CAM + 160° 렌즈", spec: "27×40.5 · 렌즈 높이 150 · 30° 아래" }, [[esp, V3(40, 0, 70)]]);
-  part({ no: "16", name: "카메라 기둥·쐐기·카메라판", spec: `포맥스 · 기둥 ${(mount.top - Z1 - 3).toFixed(0)}mm · 쐐기 30°` }, [[mount.g, V3(20, 0, 40)]]);
+  part({ no: "16", name: "카메라 기둥·쐐기·카메라판", spec: `MDF · 기둥 ${(mount.top - Z1 - 3).toFixed(0)}mm · 쐐기 30°` }, [[mount.g, V3(20, 0, 40)]]);
   const lg = grp(car);
   LEDS.forEach(([x, y]) => { const l = led5(lg, x, y, Z1 + 3, 0xffc21a); ledObjs[(y > 0 ? "L" : "R") + (x > 0 ? "f" : "r")] = l;
     resistor(lg, x + (x > 0 ? -12 : 12), y - Math.sign(y) * 6, Z1 + 3 + 1.4); });
@@ -614,13 +615,13 @@ const sigLamps = [];
 function buildSignal() {
   const base = grp(sig);
   box(base, 260, 200, 3, M("board", 0x111214, { roughness: .9 }), 60, 0, 1.5);
-  part({ no: "23", name: "바닥 판 (검정 폼보드)", spec: "3T · 코스 조각 위", tab: "sig" }, [[base, V3(0, 0, 0)]]);
+  part({ no: "22", name: "바닥 판 (검정 폼보드)", spec: "3T · 코스 조각 위", tab: "sig" }, [[base, V3(0, 0, 0)]]);
   const pole = grp(sig, 0, 0, 3);
   box(pole, 15, 15, 330, M("poleb", 0x1a1b1d, { roughness: .8 }), 0, 0, 165);
   box(pole, 15, 260, 15, M("poleb", 0x1a1b1d), 0, 130 - 7.5, 330 - 7.5);
   for (const y of [8, -8]) { const s = new THREE.Shape(); s.moveTo(0, 0); s.lineTo(40, 0); s.lineTo(0, 40); s.lineTo(0, 0);
     const gg = new THREE.ExtrudeGeometry(s, { depth: 3, bevelEnabled: false }); gg.translate(0, 0, -1.5); add(pole, gg, M("poleb", 0x1a1b1d), 7.5, y, 0, PI / 2, 0, 0); }
-  part({ no: "23", name: "기둥·팔", spec: "검정 폼보드 6cm 띠를 접은 15×15 사각 · 높이 330 · 팔 260", tab: "sig" }, [[pole, V3(0, 0, 0)]]);
+  part({ no: "22", name: "기둥·팔", spec: "검정 폼보드 6cm 띠를 접은 15×15 사각 · 높이 330 · 팔 260", tab: "sig" }, [[pole, V3(0, 0, 0)]]);
   const head = grp(sig, -10, 260 - 28 * 1.5 - 30, 303);
   box(head, 20, 136, 32, M("headb", 0x0d0d0e, { roughness: .7 }), 0, 0, 0);
   box(head, 6, 2, 12, M("poleb", 0x1a1b1d), 4, 0, 22);
@@ -694,7 +695,7 @@ function select(p) {
   renderList();
 }
 let glass = false;
-function applyGlass() { if (selected) return; parts.filter(p => p.name.endsWith("판") && p.no === "18").forEach(p => p.meshes.forEach(m => setOpacity(m, glass ? .3 : 1))); }
+function applyGlass() { if (selected) return; parts.filter(p => p.name.endsWith("판") && p.no === "16").forEach(p => p.meshes.forEach(m => setOpacity(m, glass ? .3 : 1))); }
 function place(o, v, t) {
   if (o.userData.base) o.position.copy(o.userData.base).addScaledVector(v, t);
   else { o.matrix.copy(o.userData.baseM); const e = o.matrix.elements; e[12] += v.x * t; e[13] += v.y * t; e[14] += v.z * t; }
@@ -707,9 +708,9 @@ function setExplode(t) {
 // ───────────────────────── 조립 순서 (부품 이름 앞부분으로 찾음)
 const STEPS = [
   { t: "차체판 자르기", p: ["아래판"], tools: "칼 · 쇠자 · 3mm 드릴(공작실)",
-    d: "포맥스(16번)에 1:1 도안을 대고 아래판 217.5×135 를 자름. 칼로 여러 번 그어 꺾으면 깨끗이 잘림. 서포트·LED·모터선·L298N·캐스터·브라켓 구멍을 뚫음." },
-  { t: "모터에 L 브라켓 달기", p: ["TT 모터", "L 브라켓"], tools: "드라이버 (브라켓 나사 포함)",
-    d: "브라켓 세운 면을 모터 안쪽 면에 대고 25mm 나사 2개를 모터 구멍에 관통 → 너트. 브라켓 눕힌 면을 아래판 밑면에 10mm 나사 2개로 고정. 모터 선은 이미 달려 나옴 (납땜 없음)." },
+    d: "MDF 클립보드(16번)의 집게를 떼고 1:1 도안을 대어 아래판 217.5×135 를 자름. 칼로 여러 번 긋거나 실톱. 서포트·LED·모터선·L298N·캐스터 구멍을 뚫음. 모터 고정 구멍은 2단계에서 실물을 대고 표시." },
+  { t: "모터에 고정판 달기", p: ["TT 모터", "모터 고정판"], tools: "드라이버 · 송곳 (키트 나사 포함)",
+    d: "키트 고정판을 모터 안쪽 면에 대고 긴 나사 2개를 모터 구멍에 관통 → 너트. 바퀴 중심이 바퀴축 선(뒤에서 152.5)에 오게 모터를 판 밑에 대 보고 고정 위치를 표시 → 구멍을 뚫어 나사로, 또는 순간접착제로 고정. 모터 선은 이미 달려 나옴 (납땜 없음)." },
   { t: "바퀴 끼우기", p: ["바퀴"], tools: "손",
     d: "바퀴 가운데 D자 구멍을 모터 바깥쪽 흰 축에 끝까지 밀어 넣음. 두 바퀴 중심 사이 165mm 인지 자로 확인." },
   { t: "볼캐스터 달기", p: ["볼캐스터"], tools: "3mm 드릴 · 드라이버",
@@ -718,12 +719,12 @@ const STEPS = [
     d: "홀더 바닥 구멍에 M3 볼트로 아래판 뒤쪽에 고정 (캐스터 나사 머리 위). 빨강·검정 선이 앞(L298N 쪽)을 보게. 아직 배터리는 넣지 않음." },
   { t: "L298N 달기", p: ["L298N"], tools: "드라이버",
     d: "6mm 플라스틱 서포트 4개로 띄워 고정. 방열판이 앞, 파란 전원 단자와 6핀 헤더가 뒤. ENA·ENB 점퍼 캡을 뽑아 둠." },
-  { t: "MP1584 납땜 → 5.0V 맞추기", p: ["MP1584"], tools: "★ 인두기·납 · 테스터(22번)", hot: true, solder: "must", dir: [-.25, 1.3, -.8],
+  { t: "MP1584 납땜 → 5.0V 맞추기", p: ["MP1584"], tools: "★ 인두기·납 · 테스터(21번)", hot: true, solder: "must", dir: [-.25, 1.3, -.8],
     d: "IN+ (빨강) · IN− (검정) · OUT+ (주황) · OUT− (검정) 구멍에 점퍼선 한쪽 끝을 꽂고 납땜 4곳. 배터리를 IN 에 물리고 테스터로 OUT 을 재며 가변저항을 돌려 5.0V. 그다음 양면테이프로 붙임." },
   { t: "방향지시등 LED + 220Ω", p: ["방향지시등"], tools: "인두기(권장) 또는 절연테이프", solder: "rec", dir: [.15, 1.4, .45],
     d: "키트 노랑 LED 4개를 모서리 Ø5 구멍에 꽂음. 긴 다리(+)에 220Ω 을 이어 납땜 (또는 꼬아서 절연테이프). 짧은 다리(−)는 GND 선." },
-  { t: "카메라 기둥·쐐기·카메라판", p: ["카메라 기둥"], tools: "순간접착제(25번)",
-    d: "포맥스 기둥 2장을 겹쳐 붙여 세우고 뒤에 받침 2개. 맨 위 앞면에 30° 쐐기 → 카메라판 → 암 헤더 2줄을 붙임." },
+  { t: "카메라 기둥·쐐기·카메라판", p: ["카메라 기둥"], tools: "순간접착제(24번)",
+    d: "MDF 기둥 2장을 겹쳐 붙여 세우고 뒤에 받침 2개. 맨 위 앞면에 30° 쐐기 → 카메라판 → 암 헤더 2줄을 붙임." },
   { t: "ESP32-CAM + 광각 렌즈", p: ["ESP32-CAM"], tools: "손 (업로드는 MB 보드로 먼저)",
     d: "기본 카메라를 빼고 160° 렌즈(5번) FPC 를 끼움. 코드를 MB 보드로 먼저 올린 뒤, CAM 보드만 카메라판 헤더에 꽂음. 렌즈 높이 바닥에서 150mm 확인." },
   { t: "서포트 + 윗판", p: ["황동 서포트", "윗판"], tools: "드라이버",
