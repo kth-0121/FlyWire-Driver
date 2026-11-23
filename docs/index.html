@@ -85,6 +85,7 @@ canvas#c { display: block; width: 100%; height: 100%; }
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tabCar" aria-selected="true">자동차</button>
       <button class="tab" role="tab" id="tabSig" aria-selected="false">신호등</button>
+      <button class="tab" role="tab" id="tabCourse" aria-selected="false">코스</button>
     </div>
     <div class="controls" id="stepControls">
       <div class="row"><span class="lbl">조립 순서</span>
@@ -127,6 +128,11 @@ canvas#c { display: block; width: 100%; height: 100%; }
         <button class="chip" id="bCycle" aria-pressed="true">road_signal.ino 순서로 켜기</button>
       </div>
       <div class="sub">기둥 높이 33cm, 팔 26cm, 등 중심 30cm. 이 등 하나 = 동서 방향 (남는 Uno 사용) (D2 빨강 · D3 노랑 · D4 화살표 · D5 초록). 마주 보는 등은 같은 핀에 병렬.</div>
+    </div>
+    <div class="controls" id="courseControls" hidden>
+      <div class="row"><span class="lbl">조각</span><span id="pcBtns" style="display:flex;flex-wrap:wrap;gap:6px"></span></div>
+      <div class="sub" id="pcInfo"></div>
+      <table class="wt" id="pcTable"></table>
     </div>
     <div id="parts" role="list"></div>
   </aside>
@@ -789,6 +795,95 @@ function animateCut(t) {
   cutAnim.bit.position.z = 6 * (1 - w);
 }
 
+// ───────────────────────── 코스 9조각 (단위 cm · sim.py 치수 · course3d.py 가 데이터를 넣음)
+const COURSE = /*COURSE*/{"gx":[0.0,174.67,349.33,524.0],"gy":[0.0,138.0,276.0,414.0],"lines":[{"c":"w","w":2.0,"p":[[192.0,69.0],[195.13,69.27],[198.16,70.09],[201.0,71.41],[203.57,73.21],[205.79,75.43],[207.59,78.0],[208.91,80.84],[209.73,83.87],[210.0,87.0],[210.0,142.0],[209.73,145.13],[208.91,148.16],[207.59,151.0],[205.79,153.57],[203.57,155.79],[201.0,157.59],[198.16,158.91],[195.13,159.73],[192.0,160.0],[87.0,160.0],[83.87,159.73],[80.84,158.91],[78.0,157.59],[75.43,155.79],[73.21,153.57],[71.41,151.0],[70.09,148.16],[69.27,145.13],[69.0,142.0],[69.0,87.0],[69.27,83.87],[70.09,80.84],[71.41,78.0],[73.21,75.43],[75.43,73.21],[78.0,71.41],[80.84,70.09],[83.87,69.27],[87.0,69.0],[192.0,69.0]]},{"c":"w","w":2.0,"p":[[192.0,224.0],[195.13,224.27],[198.16,225.09],[201.0,226.41],[203.57,228.21],[205.79,230.43],[207.59,233.0],[208.91,235.84],[209.73,238.87],[210.0,242.0],[210.0,327.0],[209.73,330.13],[208.91,333.16],[207.59,336.0],[205.79,338.57],[203.57,340.79],[201.0,342.59],[198.16,343.91],[195.13,344.73],[192.0,345.0],[87.0,345.0],[83.87,344.73],[80.84,343.91],[78.0,342.59],[75.43,340.79],[73.21,338.57],[71.41,336.0],[70.09,333.16],[69.27,330.13],[69.0,327.0],[69.0,297.0]]},{"c":"w","w":2.0,"p":[[69.0,247.0],[69.0,242.0],[69.27,238.87],[70.09,235.84],[71.41,233.0],[73.21,230.43],[75.43,228.21],[78.0,226.41],[80.84,225.09],[83.87,224.27],[87.0,224.0],[192.0,224.0]]},{"c":"w","w":2.0,"p":[[437.0,69.0],[440.13,69.27],[443.16,70.09],[446.0,71.41],[448.57,73.21],[450.79,75.43],[452.59,78.0],[453.91,80.84],[454.73,83.87],[455.0,87.0],[455.0,142.0],[454.73,145.13],[453.91,148.16],[452.59,151.0],[450.79,153.57],[448.57,155.79],[446.0,157.59],[443.16,158.91],[440.13,159.73],[437.0,160.0],[292.0,160.0],[288.87,159.73],[285.84,158.91],[283.0,157.59],[280.43,155.79],[278.21,153.57],[276.41,151.0],[275.09,148.16],[274.27,145.13],[274.0,142.0],[274.0,87.0],[274.27,83.87],[275.09,80.84],[276.41,78.0],[278.21,75.43],[280.43,73.21],[283.0,71.41],[285.84,70.09],[288.87,69.27],[292.0,69.0],[437.0,69.0]]},{"c":"w","w":2.0,"p":[[437.0,224.0],[440.13,224.27],[443.16,225.09],[446.0,226.41],[448.57,228.21],[450.79,230.43],[452.59,233.0],[453.91,235.84],[454.73,238.87],[455.0,242.0],[455.0,327.0],[454.73,330.13],[453.91,333.16],[452.59,336.0],[450.79,338.57],[448.57,340.79],[446.0,342.59],[443.16,343.91],[440.13,344.73],[437.0,345.0],[292.0,345.0],[288.87,344.73],[285.84,343.91],[283.0,342.59],[280.43,340.79],[278.21,338.57],[276.41,336.0],[275.09,333.16],[274.27,330.13],[274.0,327.0],[274.0,242.0],[274.27,238.87],[275.09,235.84],[276.41,233.0],[278.21,230.43],[280.43,228.21],[283.0,226.41],[285.84,225.09],[288.87,224.27],[292.0,224.0],[437.0,224.0]]},{"c":"y","w":2.0,"p":[[69.0,297.0],[107.0,297.0],[107.0,329.0],[137.0,329.0],[137.0,297.0],[179.0,297.0],[179.0,247.0],[69.0,247.0]]},{"c":"w","w":3.0,"p":[[107.0,319.4],[137.0,319.4]]},{"c":"w","w":2.0,"p":[[437.0,5.0],[451.24,6.25],[465.05,9.95],[478.0,15.99],[489.71,24.18],[499.82,34.29],[508.01,46.0],[514.05,58.95],[517.75,72.76],[519.0,87.0],[519.0,327.0],[517.75,341.24],[514.05,355.05],[508.01,368.0],[499.82,379.71],[489.71,389.82],[478.0,398.01],[465.05,404.05],[451.24,407.75],[437.0,409.0],[87.0,409.0],[72.76,407.75],[58.95,404.05],[46.0,398.01],[34.29,389.82],[24.18,379.71],[15.99,368.0],[9.95,355.05],[6.25,341.24],[5.0,327.0],[5.0,87.0],[6.25,72.76],[9.95,58.95],[15.99,46.0],[24.18,34.29],[34.29,24.18],[46.0,15.99],[58.95,9.95],[72.76,6.25],[87.0,5.0],[437.0,5.0]]},{"c":"y","w":2.0,"p":[[437.0,37.0],[445.68,37.76],[454.1,40.02],[462.0,43.7],[469.14,48.7],[475.3,54.86],[477.8,58.43],[480.3,62.0],[483.98,69.9],[486.24,78.32],[487.0,87.0],[487.0,157.0]]},{"c":"y","w":2.0,"p":[[487.0,227.0],[487.0,327.0],[486.24,335.68],[483.98,344.1],[480.3,352.0],[475.3,359.14],[469.14,365.3],[462.0,370.3],[454.1,373.98],[445.68,376.24],[437.0,377.0],[277.0,377.0]]},{"c":"y","w":2.0,"p":[[207.0,377.0],[87.0,377.0],[78.32,376.24],[69.9,373.98],[62.0,370.3],[54.86,365.3],[48.7,359.14],[43.7,352.0],[40.02,344.1],[37.76,335.68],[37.0,327.0],[37.0,227.0]]},{"c":"y","w":2.0,"p":[[37.0,157.0],[37.0,87.0],[37.76,78.32],[40.02,69.9],[43.7,62.0],[48.7,54.86],[54.86,48.7],[62.0,43.7],[69.9,40.02],[78.32,37.76],[87.0,37.0],[207.0,37.0]]},{"c":"y","w":2.0,"p":[[277.0,37.0],[437.0,37.0]]},{"c":"y","w":2.0,"p":[[72.0,192.0],[182.0,192.0]]},{"c":"y","w":2.0,"p":[[302.0,192.0],[452.0,192.0]]},{"c":"y","w":2.0,"p":[[242.0,72.0],[242.0,132.0]]},{"c":"y","w":2.0,"p":[[242.0,252.0],[242.0,342.0]]},{"c":"w","w":4.0,"p":[[187.0,192.0],[187.0,160.0]]},{"c":"w","w":3.5,"p":[[208.0,220.5],[193.0,220.5]]},{"c":"w","w":3.5,"p":[[208.0,213.5],[193.0,213.5]]},{"c":"w","w":3.5,"p":[[208.0,206.5],[193.0,206.5]]},{"c":"w","w":3.5,"p":[[208.0,199.5],[193.0,199.5]]},{"c":"w","w":3.5,"p":[[208.0,192.5],[193.0,192.5]]},{"c":"w","w":3.5,"p":[[208.0,185.5],[193.0,185.5]]},{"c":"w","w":3.5,"p":[[208.0,178.5],[193.0,178.5]]},{"c":"w","w":3.5,"p":[[208.0,171.5],[193.0,171.5]]},{"c":"w","w":3.5,"p":[[208.0,164.5],[193.0,164.5]]},{"c":"w","w":1.2,"p":[[156.0,176.0],[150.0,172.4],[144.0,176.0],[150.0,179.6],[156.0,176.0]]},{"c":"w","w":4.0,"p":[[297.0,192.0],[297.0,224.0]]},{"c":"w","w":3.5,"p":[[276.0,163.5],[291.0,163.5]]},{"c":"w","w":3.5,"p":[[276.0,170.5],[291.0,170.5]]},{"c":"w","w":3.5,"p":[[276.0,177.5],[291.0,177.5]]},{"c":"w","w":3.5,"p":[[276.0,184.5],[291.0,184.5]]},{"c":"w","w":3.5,"p":[[276.0,191.5],[291.0,191.5]]},{"c":"w","w":3.5,"p":[[276.0,198.5],[291.0,198.5]]},{"c":"w","w":3.5,"p":[[276.0,205.5],[291.0,205.5]]},{"c":"w","w":3.5,"p":[[276.0,212.5],[291.0,212.5]]},{"c":"w","w":3.5,"p":[[276.0,219.5],[291.0,219.5]]},{"c":"w","w":1.2,"p":[[328.0,208.0],[334.0,211.6],[340.0,208.0],[334.0,204.4],[328.0,208.0]]},{"c":"w","w":4.0,"p":[[242.0,137.0],[274.0,137.0]]},{"c":"w","w":3.5,"p":[[213.5,158.0],[213.5,143.0]]},{"c":"w","w":3.5,"p":[[220.5,158.0],[220.5,143.0]]},{"c":"w","w":3.5,"p":[[227.5,158.0],[227.5,143.0]]},{"c":"w","w":3.5,"p":[[234.5,158.0],[234.5,143.0]]},{"c":"w","w":3.5,"p":[[241.5,158.0],[241.5,143.0]]},{"c":"w","w":3.5,"p":[[248.5,158.0],[248.5,143.0]]},{"c":"w","w":3.5,"p":[[255.5,158.0],[255.5,143.0]]},{"c":"w","w":3.5,"p":[[262.5,158.0],[262.5,143.0]]},{"c":"w","w":3.5,"p":[[269.5,158.0],[269.5,143.0]]},{"c":"w","w":1.2,"p":[[258.0,106.0],[261.6,100.0],[258.0,94.0],[254.4,100.0],[258.0,106.0]]},{"c":"w","w":4.0,"p":[[242.0,247.0],[210.0,247.0]]},{"c":"w","w":3.5,"p":[[270.5,226.0],[270.5,241.0]]},{"c":"w","w":3.5,"p":[[263.5,226.0],[263.5,241.0]]},{"c":"w","w":3.5,"p":[[256.5,226.0],[256.5,241.0]]},{"c":"w","w":3.5,"p":[[249.5,226.0],[249.5,241.0]]},{"c":"w","w":3.5,"p":[[242.5,226.0],[242.5,241.0]]},{"c":"w","w":3.5,"p":[[235.5,226.0],[235.5,241.0]]},{"c":"w","w":3.5,"p":[[228.5,226.0],[228.5,241.0]]},{"c":"w","w":3.5,"p":[[221.5,226.0],[221.5,241.0]]},{"c":"w","w":3.5,"p":[[214.5,226.0],[214.5,241.0]]},{"c":"w","w":1.2,"p":[[226.0,278.0],[222.4,284.0],[226.0,290.0],[229.6,284.0],[226.0,278.0]]},{"c":"y","w":1.5,"p":[[220.0,170.0],[264.0,170.0],[264.0,214.0],[220.0,214.0],[220.0,170.0]]},{"c":"y","w":1.5,"p":[[220.0,207.0],[227.0,214.0]]},{"c":"y","w":1.5,"p":[[220.0,200.0],[234.0,214.0]]},{"c":"y","w":1.5,"p":[[220.0,193.0],[241.0,214.0]]},{"c":"y","w":1.5,"p":[[220.0,186.0],[248.0,214.0]]},{"c":"y","w":1.5,"p":[[220.0,179.0],[255.0,214.0]]},{"c":"y","w":1.5,"p":[[220.0,172.0],[262.0,214.0]]},{"c":"y","w":1.5,"p":[[225.0,170.0],[264.0,209.0]]},{"c":"y","w":1.5,"p":[[232.0,170.0],[264.0,202.0]]},{"c":"y","w":1.5,"p":[[239.0,170.0],[264.0,195.0]]},{"c":"y","w":1.5,"p":[[246.0,170.0],[264.0,188.0]]},{"c":"y","w":1.5,"p":[[253.0,170.0],[264.0,181.0]]},{"c":"y","w":1.5,"p":[[260.0,170.0],[264.0,174.0]]},{"c":"w","w":4.0,"p":[[87.0,5.0],[87.0,37.0]]},{"c":"w","w":2.5,"p":[[112.0,21.0],[142.0,21.0]]},{"c":"w","w":2.5,"p":[[142.0,21.0],[134.0,26.0]]},{"c":"w","w":2.5,"p":[[142.0,21.0],[134.0,16.0]]},{"c":"w","w":4.0,"p":[[372.0,5.0],[372.0,37.0]]},{"c":"w","w":4.0,"p":[[5.0,107.0],[37.0,107.0]]}],"arcs":[[87.0,87.0,82.0,"w"],[437.0,87.0,82.0,"w"],[437.0,327.0,82.0,"w"],[87.0,327.0,82.0,"w"],[87.0,87.0,50.0,"y"],[437.0,87.0,50.0,"y"],[437.0,327.0,50.0,"y"],[87.0,327.0,50.0,"y"],[87.0,87.0,18.0,"w"],[192.0,87.0,18.0,"w"],[192.0,142.0,18.0,"w"],[87.0,142.0,18.0,"w"],[87.0,242.0,18.0,"w"],[192.0,242.0,18.0,"w"],[192.0,327.0,18.0,"w"],[87.0,327.0,18.0,"w"],[292.0,87.0,18.0,"w"],[437.0,87.0,18.0,"w"],[437.0,142.0,18.0,"w"],[292.0,142.0,18.0,"w"],[292.0,242.0,18.0,"w"],[437.0,242.0,18.0,"w"],[437.0,327.0,18.0,"w"],[292.0,327.0,18.0,"w"]],"pts":[["교차로 중심",242.0,192.0,"노란 정차금지 44×44 (노랑 1.5cm), 빗금 7cm 간격"],["정지선 가운데 (서쪽으로 진입)",297.0,208.0,"흰 4cm × 32, 세로"],["정지선 가운데 (동쪽으로 진입)",187.0,176.0,"흰 4cm × 32, 세로"],["정지선 가운데 (남쪽으로 진입)",226.0,247.0,"흰 4cm × 32, 가로"],["정지선 가운데 (북쪽으로 진입)",258.0,137.0,"흰 4cm × 32, 가로"],["횡단보도 서쪽 첫 줄 (교차로 쪽 끝)",208.0,220.5,"흰 3.5cm × 15, 7cm 간격 9줄 (교차로 반대쪽으로 15cm)"],["마름모 중심 (서쪽)",150.0,176.0,"12 × 7.2 마름모, 흰 1.2cm"],["횡단보도 동쪽 첫 줄 (교차로 쪽 끝)",276.0,163.5,"흰 3.5cm × 15, 7cm 간격 9줄 (교차로 반대쪽으로 15cm)"],["마름모 중심 (동쪽)",334.0,208.0,"12 × 7.2 마름모, 흰 1.2cm"],["횡단보도 남쪽 첫 줄 (교차로 쪽 끝)",213.5,158.0,"흰 3.5cm × 15, 7cm 간격 9줄 (교차로 반대쪽으로 15cm)"],["마름모 중심 (남쪽)",258.0,100.0,"12 × 7.2 마름모, 흰 1.2cm"],["횡단보도 북쪽 첫 줄 (교차로 쪽 끝)",270.5,226.0,"흰 3.5cm × 15, 7cm 간격 9줄 (교차로 반대쪽으로 15cm)"],["마름모 중심 (북쪽)",226.0,284.0,"12 × 7.2 마름모, 흰 1.2cm"],["신호등 기둥 북동",284.0,234.0,"높이 33, 받침 10×10"],["신호등 기둥 북서",200.0,234.0,"높이 33, 받침 10×10"],["신호등 기둥 남서",200.0,150.0,"높이 33, 받침 10×10"],["신호등 기둥 남동",284.0,150.0,"높이 33, 받침 10×10"],["직각주차 통로 왼쪽 아래",69.0,247.0,"통로 110×50, 노랑 2cm"],["주차칸 왼쪽 아래",107.0,297.0,"칸 30×32, 노랑 2cm"],["주차 확인선 왼쪽 끝",107.0,319.4,"흰 3cm × 30, 가로"],["경사로 판 왼쪽 아래 모서리",312.0,3.0,"판 120×68, 높이 6.75"],["경사로 정지선 아래 끝",372.0,5.0,"흰 4cm × 32, 세로 (경사로 평지 위)"],["출발선 아래 끝",87.0,5.0,"흰 4cm × 32, 세로"],["직진 화살표 꼬리",112.0,21.0,"흰 2.5cm, 길이 30 (오른쪽으로), 머리 8×5"],["도착선 왼쪽 끝",5.0,107.0,"흰 4cm × 32, 가로"],["⑤ 가속 구간 시작 (서쪽으로 달림)",437.0,393.0,"구간 표시만 (테이프 없음)"],["⑤ 가속 구간 끝",147.0,393.0,"테이프 없음"],["Arduino 제어함 (남서 기둥 옆)",195.0,147.0,"8×6"]],"ramp":[312.0,3.0,45.0,30.0,6.75,68.0]}/*END*/;
+const course = new THREE.Group(); course.rotation.x = -PI / 2; course.visible = false; scene.add(course);
+const PCS = [], pcOv = {}, pcNums = []; let pcSel = 0;
+const f1 = v => String(+v.toFixed(1));
+function tagText(g, text, x, y, size, col) {            // 흰 바탕 이름표 (검정 판 위에서도 읽히게)
+  g.save(); g.translate(x, y); g.scale(1, -1); g.font = `700 ${size}px "IBM Plex Mono", monospace`; const w = g.measureText(text).width;
+  g.fillStyle = "rgba(255,255,255,.93)"; g.fillRect(-w / 2 - .7, -size * .68, w + 1.4, size * 1.36);
+  g.fillStyle = col; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, 0, 0); g.restore();
+}
+function pieceInfo(P) {                                  // 이 조각 안의 직선 테이프·모퉁이·표시점 (조각 왼쪽 아래 기준 cm)
+  const by = new Map();
+  COURSE.lines.forEach(({ c, w, p }) => { for (let i = 0; i + 1 < p.length; i++) { const [ax, ay] = p[i], [bx, by_] = p[i + 1];
+    const hz = Math.abs(ay - by_) < .05, vt = Math.abs(ax - bx) < .05; if (hz === vt) continue;
+    const v = hz ? ay : ax, [lo, hi] = hz ? [P.y0, P.y1] : [P.x0, P.x1], [m0, m1] = hz ? [P.x0, P.x1] : [P.y0, P.y1];
+    if (v < lo - .01 || v > hi + .01) continue;
+    const a = Math.max(Math.min(hz ? ax : ay, hz ? bx : by_), m0), b = Math.min(Math.max(hz ? ax : ay, hz ? bx : by_), m1);
+    if (b - a < .5) continue;
+    const key = `${c}|${w}|${hz ? "h" : "v"}|${v.toFixed(1)}`; if (!by.has(key)) by.set(key, { c, w, o: hz ? "h" : "v", v: v - lo, iv: [] });
+    by.get(key).iv.push([a - m0, b - m0]); } });
+  const lines = [];
+  by.forEach(L => { L.iv.sort((p, q) => p[0] - q[0]); const m = [];
+    L.iv.forEach(([a, b]) => { const t = m[m.length - 1]; if (t && a - t[1] < .6) t[1] = Math.max(t[1], b); else m.push([a, b]); });
+    m.filter(([a, b]) => b - a >= 16).forEach(([a, b]) => lines.push({ c: L.c, w: L.w, o: L.o, v: L.v, a, b })); });
+  lines.sort((p, q) => p.o.localeCompare(q.o) || p.v - q.v || p.a - q.a);
+  const inP = (x, y) => x >= P.x0 - .01 && x <= P.x1 + .01 && y >= P.y0 - .01 && y <= P.y1 + .01;
+  return { lines, arcs: COURSE.arcs.filter(([x, y]) => inP(x, y)).map(([x, y, r, c]) => [x - P.x0, y - P.y0, r, c]),
+    pts: COURSE.pts.filter(([, x, y]) => inP(x, y)).map(([n, x, y, memo]) => [n, x - P.x0, y - P.y0, memo]) };
+}
+const TAPE = { w: ["흰", "#111"], y: ["노랑", "#8a6a00"] };
+function pieceOverlay(P) {                               // 조각 위에 겹쳐 보이는 치수 도면
+  const m = 9, w = P.x1 - P.x0, h = P.y1 - P.y0, I = pieceInfo(P);
+  const t = pcbTex(w + 2 * m, h + 2 * m, "rgba(0,0,0,0)", g => { g.translate(m, m);
+    const ln = (a, b, c, d) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); };
+    g.fillStyle = "rgba(251,251,247,.95)"; g.fillRect(-m, -m, w + 2 * m, m); g.fillRect(-m, h, w + 2 * m, m); g.fillRect(-m, 0, m, h); g.fillRect(w, 0, m, h);
+    for (let i = 0; i * 10 <= w + .01; i++) { g.strokeStyle = i % 5 ? "rgba(130,180,240,.3)" : "rgba(130,180,240,.75)"; g.lineWidth = i % 5 ? .12 : .25; ln(i * 10, 0, i * 10, h);
+      g.strokeStyle = "#111"; g.lineWidth = .2; ln(i * 10, 0, i * 10, -1.6); ln(i * 10, h, i * 10, h + 1.6); T(g, String(i * 10), i * 10, -4.8, 2.6, { c: "#111" }); T(g, String(i * 10), i * 10, h + 4.8, 2.6, { c: "#111" }); }
+    for (let i = 0; i * 10 <= h + .01; i++) { g.strokeStyle = i % 5 ? "rgba(130,180,240,.3)" : "rgba(130,180,240,.75)"; g.lineWidth = i % 5 ? .12 : .25; ln(0, i * 10, w, i * 10);
+      g.strokeStyle = "#111"; g.lineWidth = .2; ln(0, i * 10, -1.6, i * 10); ln(w, i * 10, w + 1.6, i * 10); if (i) { T(g, String(i * 10), -4.8, i * 10, 2.6, { c: "#111" }); T(g, String(i * 10), w + 4.8, i * 10, 2.6, { c: "#111" }); } }
+    g.strokeStyle = "rgba(200,200,200,.8)"; g.lineWidth = .25; g.setLineDash([2, 2]); ln(60, 0, 60, 90); ln(120, 0, 120, 90); ln(0, 90, w, 90); ln(90, 90, 90, h); g.setLineDash([]);
+    tagText(g, "점선 = 보드롱 이음매 (세로 3장 + 위에 가로 2장)", 60, 93, 2, "#555");
+    g.strokeStyle = "#e0342c"; g.lineWidth = .7; g.setLineDash([4, 2]); g.strokeRect(0, 0, w, h); g.setLineDash([]);
+    g.fillStyle = "#e0342c"; g.beginPath(); g.arc(0, 0, 1.6, 0, 2 * PI); g.fill();
+    I.arcs.forEach(([x, y, r, c]) => { g.strokeStyle = "#1f6fb2"; g.lineWidth = .3; ln(x - 2.5, y, x + 2.5, y); ln(x, y - 2.5, x, y + 2.5);
+      tagText(g, `R${f1(r)} 중심 (${f1(x)}, ${f1(y)})`, Math.min(Math.max(x, 22), w - 22), y + (r > 60 ? 5 : -5), 2.2, "#1f6fb2"); });
+    I.lines.forEach((L, i) => { const k = .3 + .12 * (i % 4), mid = L.a + (L.b - L.a) * k, txt = `${L.o === "h" ? "y" : "x"} ${f1(L.v)}` + (L.w !== 2 ? ` · 폭 ${L.w}` : "");
+      tagText(g, txt, L.o === "h" ? mid : L.v, L.o === "h" ? L.v : mid, 2.4, TAPE[L.c][1]); });
+    I.pts.forEach(([n, x, y]) => { g.fillStyle = "#e0342c"; g.beginPath(); g.arc(x, y, 1, 0, 2 * PI); g.fill();
+      tagText(g, `${n.replace(/ \(.*/, "")} (${f1(x)}, ${f1(y)})`, Math.min(Math.max(x, 26), w - 26), y - 3.6, 2, "#c0392b"); });
+  }, 12);
+  const o = new THREE.Mesh(new THREE.PlaneGeometry(w + 2 * m, h + 2 * m), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+  o.position.set((P.x0 + P.x1) / 2, (P.y0 + P.y1) / 2, .75); o.renderOrder = 5; return o;
+}
+function buildCourse() {
+  const C = COURSE, W_ = C.gx[3], H_ = C.gy[3];
+  course.position.set(-W_ / 2, 0, H_ / 2);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) { const P = { k: r * 3 + c + 1, r, c, name: ["아래", "가운데", "위"][r] + " " + ["왼쪽", "가운데", "오른쪽"][c], x0: C.gx[c], x1: C.gx[c + 1], y0: C.gy[r], y1: C.gy[r + 1] };
+    PCS.push(P); box(course, P.x1 - P.x0 - .4, P.y1 - P.y0 - .4, .5, M("board", 0x111214, { roughness: .9 }), (P.x0 + P.x1) / 2, (P.y0 + P.y1) / 2, .25);
+    const cv = document.createElement("canvas"); cv.width = cv.height = 128; const g = cv.getContext("2d");
+    g.fillStyle = "rgba(224,52,44,.9)"; g.beginPath(); g.arc(64, 64, 60, 0, 2 * PI); g.fill(); g.fillStyle = "#fff"; g.font = '700 84px "IBM Plex Mono", monospace'; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(P.k, 64, 70);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false })); sp.scale.set(36, 36, 1); sp.position.set((P.x0 + P.x1) / 2, (P.y0 + P.y1) / 2, 30); sp.renderOrder = 10; course.add(sp); pcNums.push(sp); }
+  const tri = { w: [], y: [] };
+  C.lines.forEach(({ c, w, p }) => { for (let i = 0; i + 1 < p.length; i++) { let [ax, ay] = p[i], [bx, by] = p[i + 1]; const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy); if (L < 1e-6) continue;
+    const ux = dx / L, uy = dy / L, nx = -uy * w / 2, ny = ux * w / 2, e = w / 4; ax -= ux * e; ay -= uy * e; bx += ux * e; by += uy * e;
+    tri[c].push(ax - nx, ay - ny, .56, bx - nx, by - ny, .56, bx + nx, by + ny, .56, ax - nx, ay - ny, .56, bx + nx, by + ny, .56, ax + nx, ay + ny, .56); } });
+  for (const [c, col] of [["w", 0xf4f4f0], ["y", 0xf2b800]]) { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(tri[c], 3)); g.computeVertexNormals();
+    const me = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col, roughness: .8 })); me.receiveShadow = true; course.add(me); }
+  const [rx, ry, up, flat, hgt, rw] = C.ramp, sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(up, hgt); sh.lineTo(up + flat, hgt); sh.lineTo(2 * up + flat, 0); sh.lineTo(0, 0);
+  add(course, new THREE.ExtrudeGeometry(sh, { depth: rw, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0x8a5a2b, transparent: true, opacity: .55, roughness: .9 }), rx, ry + rw, .6, PI / 2, 0, 0);
+  C.pts.filter(q => q[0].startsWith("신호등 기둥")).forEach(([, x, y]) => cylZ(course, .75, 33, mat.black(), x, y, 17, 10));
+  ["전체", 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((n, k) => { const b = document.createElement("button"); b.className = "chip"; b.textContent = n; b.setAttribute("aria-pressed", "false"); b.onclick = () => selectPiece(k); $("pcBtns").appendChild(b); });
+}
+function selectPiece(k) {
+  pcSel = k; [...$("pcBtns").children].forEach((b, i) => b.setAttribute("aria-pressed", i === k));
+  Object.values(pcOv).forEach(o => o.visible = false); pcNums.forEach(sp => sp.visible = !k);
+  const W_ = COURSE.gx[3], H_ = COURSE.gy[3], row = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`, head = t => `<tr><th colspan=2>${t}</th></tr>`;
+  if (!k) { $("pcInfo").textContent = `전체 코스 ${f1(W_)} × ${f1(H_)} cm = 조각 9개 (각 ${f1(COURSE.gx[1])} × ${f1(COURSE.gy[1])} cm, 보드롱 5장씩). 번호를 누르면 그 조각의 테이프 위치가 cm 로 나옴. 갈색 = 경사로 판, 검은 기둥 = 신호등.`;
+    $("pcTable").innerHTML = head("조각 (번호: 왼쪽 아래 1 → 오른쪽 위 9)") + PCS.map(P => row(`${P.k}번 · ${P.name}`, `전체 좌표 x ${f1(P.x0)}~${f1(P.x1)}, y ${f1(P.y0)}~${f1(P.y1)}`)).join("") +
+      head("테이프") + row("흰 2cm", "차로 가장자리 · 바깥 테두리") + row("노랑 2cm", "중앙선 · 주차 검지선") + row("흰 3.5cm", "횡단보도") + row("흰 4cm", "정지선 · 출발선 · 도착선");
+    flyTo(V3(0, 0, 0), 900, V3(0, 1.3, .8).normalize()); return; }
+  const P = PCS[k - 1], I = pieceInfo(P); if (!pcOv[k]) course.add(pcOv[k] = pieceOverlay(P)); pcOv[k].visible = true;
+  const nb = [["왼쪽", P.c > 0 && k - 1], ["오른쪽", P.c < 2 && k + 1], ["아래", P.r > 0 && k - 3], ["위", P.r < 2 && k + 3]].filter(q => q[1]).map(([s_, n]) => `${s_} ${n}번`).join(", ");
+  $("pcInfo").textContent = `조각 ${k} (${P.name}) · ${f1(P.x1 - P.x0)} × ${f1(P.y1 - P.y0)} cm · 보드롱 세로 3장(60×90) + 그 위에 가로 2장(48cm 로 자름), 가로를 ${f1(P.x1 - P.x0)} 로 맞춰 자름 · 이웃: ${nb}. 숫자는 이 조각 왼쪽 아래 빨간 ● 모서리 기준 cm, 선은 테이프 가운데 위치. 하늘색 격자 = 10cm.`;
+  $("pcTable").innerHTML = head("직선 테이프 (테이프 가운데, cm)") + (I.lines.map(L => row(`${TAPE[L.c][0]} ${L.w}cm ${L.o === "h" ? "가로선" : "세로선"}`, `${L.o === "h" ? "y" : "x"} = ${f1(L.v)} · ${L.o === "h" ? "x" : "y"} ${f1(L.a)} → ${f1(L.b)}`)).join("") || row("없음", "")) +
+    (I.arcs.length ? head("둥근 모퉁이 (컴퍼스·실로 그림)") + I.arcs.map(([x, y, r, c]) => row(`${TAPE[c][0]} 2cm · R ${f1(r)}`, `중심 (${f1(x)}, ${f1(y)})`)).join("") : "") +
+    (I.pts.length ? head("표시할 점") + I.pts.map(([n, x, y, memo]) => row(n, `(${f1(x)}, ${f1(y)}) — ${memo}`)).join("") : "");
+  flyTo(V3((P.x0 + P.x1) / 2 - W_ / 2, 0, H_ / 2 - (P.y0 + P.y1) / 2), 330, V3(0, 1.6, .4).normalize());
+}
+
 // ───────────────────────── 신호등 치수 도면 (조립 2~4단계: 바닥에 펼친 도면)
 const sigCutG = grp(sig); sigCutG.visible = false;
 const sigCutStages = [];
@@ -1086,7 +1181,7 @@ function flyTo(target, dist, dir) {
 }
 const carCenter = () => V3(-40, 70, 0);
 const VIEWS = { iso: V3(1, .8, 1.1), front: V3(1, .25, 0), side: V3(0, .25, 1), top: V3(0, 1, .0001), under: V3(.3, -.6, .5) };
-function view(name) { flyTo(tab === "car" ? carCenter() : V3(30, 170, -100), tab === "car" ? 520 : 800, VIEWS[name].clone().normalize()); }
+function view(name) { const [q, d] = tab === "car" ? [carCenter(), 520] : tab === "sig" ? [V3(30, 170, -100), 800] : [V3(0, 0, 0), 900]; flyTo(q, d, VIEWS[name].clone().normalize()); }
 
 // 마우스 위 부품 이름
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), tip = document.getElementById("tip");
@@ -1128,12 +1223,13 @@ let driving = false; $("bDrive").onclick = () => driving = toggle($("bDrive"));
 let cycling = true; $("bCycle").onclick = () => cycling = toggle($("bCycle"));
 function setTab(t) {
   if (stepMode) { toggle($("bSteps"), false); setSteps(false); }
-  tab = t; car.visible = t === "car"; sig.visible = t === "sig"; selected = null; select(null);
-  $("tabCar").setAttribute("aria-selected", t === "car"); $("tabSig").setAttribute("aria-selected", t === "sig");
+  tab = t; car.visible = t === "car"; sig.visible = t === "sig"; course.visible = t === "course"; selected = null; select(null);
+  for (const [id, n] of [["tabCar", "car"], ["tabSig", "sig"], ["tabCourse", "course"]]) $(id).setAttribute("aria-selected", t === n);
   $("carControls").hidden = $("wireTable").hidden = t !== "car"; $("sigControls").hidden = t !== "sig"; $("phase").hidden = t !== "sig";
-  view("iso");
+  $("stepControls").hidden = t === "course"; $("courseControls").hidden = t !== "course";
+  if (t === "course") selectPiece(pcSel); else view("iso");
 }
-$("tabCar").onclick = () => setTab("car"); $("tabSig").onclick = () => setTab("sig");
+$("tabCar").onclick = () => setTab("car"); $("tabSig").onclick = () => setTab("sig"); $("tabCourse").onclick = () => setTab("course");
 
 // ESP32-CAM 시점 카메라 (sim.py: 30° 아래, 세로 화각 92°)
 const camEsp = new THREE.PerspectiveCamera(92.2, 4 / 3, 2, 3000);
@@ -1178,7 +1274,7 @@ function loop() {
 
 (async () => {
   try { await Promise.all([document.fonts.load('600 12px "IBM Plex Mono"'), document.fonts.load('700 12px "IBM Plex Sans KR"')]); } catch (e) {}
-  buildCar(); buildCut(); buildSigCut(); buildSignal(); finishParts(); fillWireTable();
+  buildCar(); buildCut(); buildSigCut(); buildSignal(); buildCourse(); finishParts(); fillWireTable();
   car.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
   resize(); renderList();
   camera.position.copy(carCenter()).add(VIEWS.iso.clone().normalize().multiplyScalar(520)); controls.target.copy(carCenter());
