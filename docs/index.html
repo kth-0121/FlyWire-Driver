@@ -724,7 +724,7 @@ function showCut(k) {
   cutG.visible = k >= 0; cutStages.forEach((g, i) => g.visible = i === k);
   if (k < 0) return;
   const b = new THREE.Box3().setFromObject(cutStages[k]);
-  flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 1.05, 260), V3(...(k === 3 ? [.6, 1.6, .7] : [.35, 1.5, .55])).normalize());
+  flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 1.5, 300), V3(...(k === 3 ? [.6, 1.6, .7] : [.35, 1.5, .55])).normalize());
 }
 function animateCut(t) {
   if (!cutG.visible) return;
@@ -1037,7 +1037,7 @@ function loop() {
     $("phase").textContent = cycling ? `${st[2]} · ${Math.ceil(PH[i][0] - t)}초` : "꺼짐"; }
   const w = stage.clientWidth, h = stage.clientHeight;
   renderer.setViewport(0, 0, w, h); renderer.setScissorTest(false); renderer.render(scene, camera);
-  const pip = tab === "car" && $("tPip").getAttribute("aria-pressed") === "true" && $("explode").value == 0;
+  const pip = tab === "car" && !cutG.visible && $("tPip").getAttribute("aria-pressed") === "true" && $("explode").value == 0;
   $("pipLabel").hidden = !pip;
   if (pip) { const pw = Math.round(Math.min(260, w * .36)), ph = Math.round(pw * .75);
     updateEspCam(); renderer.setScissorTest(true); renderer.setViewport(w - pw - 14, 14, pw, ph); renderer.setScissor(w - pw - 14, 14, pw, ph);
