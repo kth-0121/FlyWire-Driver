@@ -707,6 +707,16 @@ function cutLine(p, x0, y0, x1, y1) {                     // 빨간 자를 선
   const L = Math.hypot(x1 - x0, y1 - y0);
   box(p, L, 1.6, .5, M("cutline", 0xe0342c, { emissive: 0xe0342c, emissiveIntensity: .4 }), (x0 + x1) / 2, (y0 + y1) / 2, 3.3, Math.atan2(y1 - y0, x1 - x0));
 }
+function pins(p, key) {                                 // 구멍 중심마다 세운 핀 + 떠 있는 좌표 이름표 (가로, 세로 cm)
+  HOLES[key].forEach(([x, y, d, tag], i) => { const col = TAGS[tag][1], hgt = 16 + (i % 3) * 13, u = x - SPEC[key].ox, v = y - SPEC[key].oy;
+    cylZ(p, .7, hgt, M("pin" + tag, col), x, y, 3 + hgt / 2, 8);
+    cylZ(p, d / 2, .6, M("pin" + tag, col), x, y, 3.9, 20);
+    const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g = c.getContext("2d");
+    g.fillStyle = col; g.fillRect(0, 0, 256, 64); g.fillStyle = "#fff"; g.font = '700 32px "IBM Plex Mono", monospace'; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(`${cm(u)}, ${cm(v)}`, 128, 34);
+    const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false })); sp.scale.set(30, 7.5, 1); sp.position.set(x, y, 3 + hgt + 4.5); sp.renderOrder = 10; p.add(sp); });
+}
 function buildCut() {
   // 0 집게 떼기: 판 두 장 + 집게 (위아래로 들림) + 리벳
   let g = grp(cutG); cutStages.push(g);
@@ -741,14 +751,14 @@ function buildCut() {
   g = grp(cutG); cutStages.push(g);
   sheet(g, SB);
   plate(g, -R, F, -W / 2, W / 2, HOLES.bottom, 0);
-  g.userData.focus = [drawing(g, "bottom", -R, -W / 2, 3.3, true)];
+  g.userData.focus = [drawing(g, "bottom", -R, -W / 2, 3.3, true)]; pins(g, "bottom"); g.userData.dir = [.15, 1.15, .8];
   const bit = grp(g, LEDS[0][0], LEDS[0][1], 0); cutAnim.bit = bit;
   cylZ(bit, 2.5, 50, mat.steel(), 0, 0, 30, 16);
   cylZ(bit, 9, 40, M("chuck", 0x2a2b2d, { roughness: .5 }), 0, 0, 75, 20);
   // 4 윗판·카메라 부품: 1장째 남은 곳 → 윗판, 2장째 → 기둥·카메라판·쐐기·받침 (조금씩 떼어 놓음)
   g = grp(cutG); cutStages.push(g);
   plate(g, -R, F, -W / 2, W / 2, HOLES.bottom, 0);
-  const up = grp(g, -7.5 + 5, W / 2 + 5 + 50 + 20, 0); plate(up, -145, 0, -50, 50, HOLES.up, 0); drawing(up, "up", -145, -50, 3.3, true);
+  const up = grp(g, -7.5 + 5, W / 2 + 5 + 50 + 20, 0); plate(up, -145, 0, -50, 50, HOLES.up, 0); drawing(up, "up", -145, -50, 3.3, true); pins(up, "up"); g.userData.focus = [up]; g.userData.dir = [.15, 1.15, .8];
   box(g, 228, 315, 1, M("scrap", 0x6d5a43, { roughness: 1 }), SB[0] + 114, SB[1] + 157.5, .5);
   PIECES_B.forEach(([u, v, w, h], i) => box(g, w, h, 3, mat.foamex(), SB[0] + u + w / 2 + i * 6, SB[1] + v + h / 2, 2.5));
   TRIS_B.forEach(([u, v, a, b], i) => tri(g, a, b, mat.foamex(), SB[0] + u + i * 6, SB[1] + v + 90, 1));
@@ -759,7 +769,7 @@ function showCut(k) {
   const [G, stages] = tab === "sig" ? [sigCutG, sigCutStages] : [cutG, cutStages];
   G.visible = true; stages.forEach((g, i) => g.visible = i === k);
   const b = new THREE.Box3(); (stages[k].userData.focus || [stages[k]]).forEach(o => b.expandByObject(o));
-  flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 1.4, 300), V3(0, 1.6, .45).normalize());
+  flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 1.4, 300), V3(...(stages[k].userData.dir || [0, 1.6, .45])).normalize());
 }
 function animateCut(t) {
   if (!cutG.visible) return;
