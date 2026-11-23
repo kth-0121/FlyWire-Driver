@@ -377,9 +377,61 @@ def page_signal():
     return fig
 
 
+# ---------------------------------------------------------------- 5b. 신호등 1:1 도안 (A4 출력용)
+def strip(ax, x, y, length, title):
+    """폭 60mm 띠 + 칼집 선 3줄 (15·30·45mm)."""
+    ax.add_patch(Rectangle((x, y), length, 60, fc="none", ec="k", lw=1.2))
+    for v in (15, 30, 45):
+        ax.plot([x, x + length], [y + v, y + v], color="#1f6fb2", lw=.8, ls="--")
+        ax.text(x + 3, y + v + 1.2, f"칼집 {v / 10:g} cm (앞면만, 뒷면 종이는 남김)", fontsize=5.5, color="#1f6fb2")
+    ax.text(x + length / 2, y + 52, title, fontsize=7.5, ha="center", weight="bold")
+
+
+def page_sig_pole():
+    fig, ax = sheet()
+    strip(ax, 8, 135, 165, "기둥 띠 ① 아래쪽 절반 (0 ~ 16.5 cm)")
+    strip(ax, 8, 55, 165, "기둥 띠 ② 위쪽 절반 (16.5 ~ 33 cm)")
+    for y, x, t, ha in ((135, 173, "빨간 선 = ② 의 왼쪽 끝과 맞댐 ↑", "right"), (55, 8, "↑ 빨간 선 = ① 의 오른쪽 끝과 맞댐", "left")):
+        ax.plot([x, x], [y - 3, y + 63], color=RED, lw=1.5)
+        ax.text(x, y - 7, t, fontsize=6.5, color=RED, ha=ha, va="center")
+    ax.add_patch(Rectangle((8 + 150, 55 + 15), 15, 15, fc="#f5b7b1", ec=RED, lw=1, hatch="//"))
+    ax.text(8 + 148, 55 + 22.5, "팔 끼우는 구멍 15×15 →", fontsize=6, color=RED, ha="right", va="center")
+    ax.text(8 + 82, 55 + 7, "위 끝 (팔 붙는 쪽) →", fontsize=6.5, color="#2a7", ha="center")
+    ax.text(8 + 82, 135 + 7, "← 아래 끝 (바닥 쪽)", fontsize=6.5, color="#2a7", ha="center")
+    ax.text(185, 190, "쓰는 법", fontsize=9, weight="bold")
+    ax.text(185, 184, "1. 실제 크기 100% 로 출력\n   (아래 50mm 눈금을 자로 확인)\n2. ①·② 를 굵은 선에서 오려\n   빨간 선끼리 맞대어 보드롱에\n   풀·테이프로 붙임 → 6 × 33 cm\n3. 굵은 선 = 끝까지 자름\n4. 파란 점선 = 칼집 (반만)\n5. 빨간 빗금 = 구멍으로 오려 냄\n6. 칼집 반대쪽으로 접어\n   1.5 × 1.5 cm 사각 기둥\n\n신호등 4개 → 이 쪽 4장 출력", fontsize=7, va="top", linespacing=1.5)
+    ax.text(10, 202, "⑦ 신호등 기둥 띠 1:1 (6 × 33 cm, A4 에 안 들어가 둘로 나눔) — 검정 보드롱 3T", fontsize=8, weight="bold")
+    return fig
+
+
+def page_sig_head():
+    fig, ax = sheet()
+    strip(ax, 8, 136, 260, "팔 띠 6 × 26 cm")
+    hole(ax, 8 + 245, 136 + 22.5, 5, "전선 Ø5")
+    ax.text(8 + 6, 136 + 37, "← 이 끝을 기둥 맨 위 구멍에 붙임", fontsize=6.5, color="#2a7")
+    ax.text(8 + 254, 136 + 37, "등 머리 다는 쪽 →", fontsize=6.5, color="#2a7", ha="right")
+    for x, t in ((8, "앞판 13.6 × 3.2 (앞에서 본 모습) — LED 구멍은 살짝 작게 Ø9.5"), (150, "뒤판 13.6 × 3.2")):
+        ax.add_patch(Rectangle((x, 92), 136, 32, fc="none", ec="k", lw=1.2))
+        ax.text(x, 126, t, fontsize=6.5)
+    for u, (name, c) in zip((26, 54, 82, 110), LAMPS):
+        hole(ax, 8 + u, 92 + 16, 10)
+        ax.text(8 + u, 92 + 3, name, fontsize=6, ha="center", color=c)
+    hole(ax, 150 + 68, 92 + 16, 5, "전선 Ø5")
+    for x, t in ((8, "위판 13.6 × 1.4"), (150, "아래판 13.6 × 1.4")):
+        ax.add_patch(Rectangle((x, 68), 136, 14, fc="none", ec="k", lw=1.2))
+        ax.text(x + 68, 75, t, fontsize=6.5, ha="center", va="center")
+    for x in (8, 42):
+        ax.add_patch(Rectangle((x, 44), 26, 14, fc="none", ec="k", lw=1.2))
+        ax.text(x + 13, 51, "옆판", fontsize=6, ha="center", va="center")
+    ax.text(80, 54, "옆판 2.6 × 1.4 ×2 · 화살표 = 3번째 초록 LED 앞에 ← 모양만 오려 낸 검정 테이프\n"
+            "앞판·위·아래·옆판을 먼저 붙이고, LED 배선 뒤 뒤판을 닫음. 신호등 4개 → 이 쪽 4장 출력", fontsize=6.5, va="top", linespacing=1.5)
+    ax.text(10, 203, "⑧ 신호등 팔 띠 · 등 머리 판 6장 1:1 — 검정 보드롱 3T (굵은 선 = 자름, 파란 점선 = 칼집)", fontsize=8, weight="bold")
+    return fig
+
+
 # ---------------------------------------------------------------- 6. 조립 순서
 STEPS = """[자동차]  (주문 번호 = 주문서 no)
-1. 차체판: ③④ 페이지를 실제 크기로 출력 → 50mm 눈금 확인 → MDF 클립보드(16, 집게 떼어냄)에 붙이고 칼·실톱으로 자름. 구멍은 송곳으로 표시 후 드릴.
+1. 차체판: ③④ 페이지를 실제 크기로 출력 → 50mm 눈금 확인 → MDF 클립보드(16, 집게는 그대로 — 위쪽 40mm 는 안 씀)에 붙이고 칼·실톱으로 자름. 구멍은 송곳으로 표시 후 드릴.
 2. 모터: 키트 고정판에 TT 모터(1)를 긴 나사 2개로 고정 → 아래판 밑면 '모터 고정판' 자리에 대고 구멍 표시 → 나사 또는 순간접착제. 키트 바퀴(1) 끼움.
 3. 캐스터(2): 서포트(14·15) 로 띄워 아래판 밑면 뒤쪽에. 평평한 책상에 올려 아래판이 수평(판 밑면 높이 42mm)이 되게 너트로 높이 조절.
 4. 아래판 위: 18650 홀더(6) 양면테이프, L298N(3) 나사 4개, MP1584(9) 양면테이프. 모터선은 Ø8 구멍으로 올려 L298N OUT 단자에.
@@ -432,3 +484,9 @@ if __name__ == "__main__":
             fig.savefig(OUT / f"{name}.png", dpi=80 if fig.get_figwidth() > 12 else 110)
             plt.close(fig)
     print(OUT / "조립설계도.pdf")
+    with PdfPages(OUT / "출력용_A4_1대1.pdf") as pdf:            # 출력해서 붙이고 자르는 쪽만 (A4 가로, 실제 크기 100%)
+        for page in (page_bottom, page_upper, page_sig_pole, page_sig_head):
+            fig = page()
+            pdf.savefig(fig)
+            plt.close(fig)
+    print(OUT / "출력용_A4_1대1.pdf")
