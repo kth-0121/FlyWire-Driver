@@ -133,6 +133,7 @@ canvas#c { display: block; width: 100%; height: 100%; }
     <div class="controls" id="courseControls" hidden>
       <div class="row"><span class="lbl">조각</span><span id="pcBtns" style="display:flex;flex-wrap:wrap;gap:6px"></span></div>
       <div class="sub" id="pcInfo"></div>
+      <a id="pcPdf" target="_blank" rel="noopener" style="color:var(--hl);font-size:12.5px" hidden></a>
       <table class="wt" id="pcTable"></table>
     </div>
     <div id="parts" role="list"></div>
@@ -871,6 +872,7 @@ function buildCourse() {
 function selectPiece(k) {
   pcSel = k; [...$("pcBtns").children].forEach((b, i) => b.setAttribute("aria-pressed", i === k));
   Object.values(pcOv).forEach(o => o.visible = false); pcNums.forEach(sp => sp.visible = !k);
+  $("pcPdf").hidden = !k; $("pcPdf").href = `https://kth-0121.github.io/FlyWire-Driver/course_a4/piece${k}.pdf`; $("pcPdf").textContent = `조각 ${k} 출력용 PDF (A4 가로 1:1, 표시 있는 종이만)`;
   const W_ = COURSE.gx[3], H_ = COURSE.gy[3], row = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`, head = t => `<tr><th colspan=2>${t}</th></tr>`;
   if (!k) { $("pcInfo").textContent = `전체 코스 ${f1(W_)} × ${f1(H_)} cm = 조각 9개 (각 ${f1(COURSE.gx[1])} × ${f1(COURSE.gy[1])} cm, 보드롱 5장씩). 번호를 누르면 그 조각의 테이프 위치가 cm 로 나옴. 갈색 = 경사로 판, 검은 기둥 = 신호등.`;
     $("pcTable").innerHTML = head("조각 (번호: 왼쪽 아래 1 → 오른쪽 위 9)") + PCS.map(P => row(`${P.k}번 · ${P.name}`, `전체 좌표 x ${f1(P.x0)}~${f1(P.x1)}, y ${f1(P.y0)}~${f1(P.y1)}`)).join("") +
