@@ -496,7 +496,7 @@ const car = new THREE.Group(); car.rotation.x = -PI / 2; scene.add(car);
 const sig = new THREE.Group(); sig.rotation.x = -PI / 2; sig.visible = false; scene.add(sig);
 
 const wiresG = grp(car);
-const ledObjs = {};
+const ledObjs = {}, HOLES = {};
 function buildCar() {
   const bottomHoles = [...STANDOFFS.map(([x, y]) => [x, y, 3.2]), ...LEDS.map(([x, y]) => [x, y, 5]),
     [-62, 40, 8], [-62, -40, 8], ...[[-18.5, -18.5], [18.5, -18.5], [-18.5, 18.5], [18.5, 18.5]].map(([x, y]) => [LX + x, y, 3.2]),
@@ -504,6 +504,7 @@ function buildCar() {
   const pb = plate(car, -R, F, -W / 2, W / 2, bottomHoles, Z1);
   const upHoles = [...STANDOFFS.map(([x, y]) => [x, y, 3.2]), ...UNO_HOLES.map(([x, y]) => [UNO0[0] + x, UNO0[1] + y, 3.2]), [-20, 9, 12]];
   const pu = plate(car, -145, 0, -50, 50, upHoles, Z2);
+  HOLES.bottom = bottomHoles; HOLES.up = upHoles;
   part({ no: "16", name: "아래판", spec: "MDF 3mm (A4 클립보드) · 217.5×135 · 밑면 높이 42" }, [[pb, V3(0, 0, 0)]]);
   part({ no: "16", name: "윗판", spec: "MDF 3mm (A4 클립보드) · 145×100 · 서포트 30mm 위" }, [[pu, V3(0, 0, 90)]]);
   const so = grp(car);
@@ -644,6 +645,95 @@ function buildWires(mount) {
   }
 }
 
+
+// ───────────────────────── 차체판 자르기 (조립 1~5단계에서만 보임)
+// MDF 클립보드 228×315 두 장. 판 좌표 (u, v) mm: u = 가로 228, v = 세로 315, 위쪽 v 275~315 는 집게 자리.
+// 1장째는 아래판 조각이 실제 차의 아래판 자리 (바닥 높이) 에 오도록 놓음.
+const cutG = grp(car); cutG.visible = false;
+const cutStages = [], cutAnim = {};
+const SA = [-R - 5, -W / 2 - 5], SB = [F + 40, -W / 2 - 5];          // 1장째·2장째 왼쪽 아래 모서리
+const PIECES_B = [[5, 5, 20, 113, "기둥 1"], [30, 5, 20, 113, "기둥 2"], [55, 5, 27, 26, "카메라판"]];
+const TRIS_B = [[55, 40, 13, 22.5, "쐐기"], [72, 40, 13, 22.5, "쐐기"], [89, 40, 20, 25, "받침"], [113, 40, 20, 25, "받침"]];
+function paper(p, w, h, label, x, y, z, extra) {         // 도안 종이: 굵은 선 = 자를 선, 5mm 여백
+  const t = pcbTex(w + 10, h + 10, "#fbfbf7", g => {
+    g.strokeStyle = "#111"; g.lineWidth = 1.1; g.strokeRect(5, 5, w, h);
+    g.setLineDash([3, 2]); g.lineWidth = .4; g.strokeRect(2, 2, w + 6, h + 6); g.setLineDash([]);
+    if (extra) extra(g);
+    T(g, label, 5 + w / 2, 5 + h / 2, Math.min(14, w / 6, h / 2.5), { c: "#222" });
+  }, 4);
+  return add(p, new THREE.PlaneGeometry(w + 10, h + 10), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }), x + w / 2, y + h / 2, z);
+}
+function tri(p, a, b, m, x, y, z) { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(a, 0); sh.lineTo(0, b); sh.lineTo(0, 0);
+  return add(p, new THREE.ExtrudeGeometry(sh, { depth: 3, bevelEnabled: false }), m, x, y, z); }
+function sheet(p, [x0, y0], rest = [0, 315]) {           // MDF 판 (v 구간만), 판 위 집게 자리 회색
+  const m = box(p, 228, rest[1] - rest[0], 3, mat.foamex(), x0 + 114, y0 + (rest[0] + rest[1]) / 2, 1.5);
+  if (rest[1] === 315) box(p, 228, 40, .4, M("clipzone", 0x55524c, { roughness: 1, transparent: true, opacity: .55 }), x0 + 114, y0 + 295, 3.2);
+  return m;
+}
+function cutLine(p, x0, y0, x1, y1) {                     // 빨간 자를 선
+  const L = Math.hypot(x1 - x0, y1 - y0);
+  box(p, L, 1.6, .5, M("cutline", 0xe0342c, { emissive: 0xe0342c, emissiveIntensity: .4 }), (x0 + x1) / 2, (y0 + y1) / 2, 3.3, Math.atan2(y1 - y0, x1 - x0));
+}
+function buildCut() {
+  // 0 집게 떼기: 판 두 장 + 집게 (위아래로 들림) + 리벳
+  let g = grp(cutG); cutStages.push(g);
+  cutAnim.clips = [];
+  for (const s of [SA, SB]) {
+    box(g, 228, 315, 3, mat.foamex(), s[0] + 114, s[1] + 157.5, 1.5);
+    const c = grp(g, s[0] + 114, s[1] + 292, 3);
+    box(c, 110, 32, 2, mat.steel(), 0, 0, 7);
+    box(c, 110, 6, 9, mat.steel(), 0, 14, 3.5);
+    box(c, 70, 8, 3, mat.steel(), 0, -20, 9);
+    cutAnim.clips.push(c);
+    for (const dx of [-30, 30]) cylZ(g, 3.2, 2.2, M("rivet", 0xd23b2f, { metalness: .6, roughness: .3 }), s[0] + 114 + dx, s[1] + 292, 4.1, 16);
+  }
+  // 1 도안 배치: 집게 뗀 판 + 1:1 도안 종이
+  g = grp(cutG); cutStages.push(g);
+  sheet(g, SA); sheet(g, SB);
+  paper(g, F + R, W, "③ 아래판 217.5×135", SA[0] + 5, SA[1] + 5, 3.3);
+  paper(g, 145, 100, "④ 윗판 145×100", SA[0] + 5, SA[1] + 150, 3.3);
+  PIECES_B.forEach(([u, v, w, h, n]) => paper(g, w, h, n, SB[0] + u, SB[1] + v, 3.3));
+  paper(g, 80, 30, "쐐기·받침", SB[0] + 55, SB[1] + 40, 3.3);
+  // 2 아래판 자르기: 큰 덩어리 → 정확한 선. 쇠자는 버리는 쪽에.
+  g = grp(cutG); cutStages.push(g);
+  sheet(g, SA, [148, 315]); sheet(g, SB);
+  const piece = grp(g, 0, -14, 0);                          // 떼어 낸 아래판 덩어리
+  plate(piece, -R - 5, F + 5, -W / 2 - 5, W / 2 + 3, [], 0);
+  paper(piece, F + R, W, "③ 아래판 — 선까지 자름", SA[0] + 5, SA[1] + 5, 3.3);
+  cutLine(piece, -R, W / 2, F, W / 2); cutLine(piece, F, -W / 2, F, W / 2);
+  box(piece, 300, 26, 1.6, mat.steel(), -R + 105, W / 2 + 16, 4.2);   // 쇠자 (선 바깥 = 버리는 쪽)
+  const knife = grp(piece, F - 40, W / 2 + 1, 4); cutAnim.knife = knife;
+  box(knife, 70, 14, 10, M("knife", 0xf2c200, { roughness: .4 }), -35, 0, 12, 0);
+  box(knife, 14, 1, 10, mat.silver(), 4, 0, 5);
+  // 3 구멍 뚫기: 자른 아래판 + 구멍 + 오르내리는 드릴 날
+  g = grp(cutG); cutStages.push(g);
+  sheet(g, SB);
+  plate(g, -R, F, -W / 2, W / 2, HOLES.bottom, 0);
+  const bit = grp(g, LEDS[0][0], LEDS[0][1], 0); cutAnim.bit = bit;
+  cylZ(bit, 2.5, 50, mat.steel(), 0, 0, 30, 16);
+  cylZ(bit, 9, 40, M("chuck", 0x2a2b2d, { roughness: .5 }), 0, 0, 75, 20);
+  // 4 윗판·카메라 부품: 1장째 남은 곳 → 윗판, 2장째 → 기둥·카메라판·쐐기·받침 (조금씩 떼어 놓음)
+  g = grp(cutG); cutStages.push(g);
+  plate(g, -R, F, -W / 2, W / 2, HOLES.bottom, 0);
+  const up = grp(g, -7.5 + 5, W / 2 + 5 + 50 + 20, 0); plate(up, -145, 0, -50, 50, HOLES.up, 0);
+  box(g, 228, 315, 1, M("scrap", 0x6d5a43, { roughness: 1 }), SB[0] + 114, SB[1] + 157.5, .5);
+  PIECES_B.forEach(([u, v, w, h], i) => box(g, w, h, 3, mat.foamex(), SB[0] + u + w / 2 + i * 6, SB[1] + v + h / 2, 2.5));
+  TRIS_B.forEach(([u, v, a, b], i) => tri(g, a, b, mat.foamex(), SB[0] + u + i * 6, SB[1] + v + 90, 1));
+}
+function showCut(k) {
+  cutG.visible = k >= 0; cutStages.forEach((g, i) => g.visible = i === k);
+  if (k < 0) return;
+  const b = new THREE.Box3().setFromObject(cutStages[k]);
+  flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 1.05, 260), V3(...(k === 3 ? [.6, 1.6, .7] : [.35, 1.5, .55])).normalize());
+}
+function animateCut(t) {
+  if (!cutG.visible) return;
+  const w = .5 - .5 * Math.cos(t * 2.2);
+  cutAnim.clips.forEach(c => c.position.z = 3 + 40 * w);
+  cutAnim.knife.position.x = -R + 30 + (F + R - 40) * w;
+  cutAnim.bit.position.z = 6 * (1 - w);
+}
+
 // ───────────────────────── 신호등 (road_signal.ino)
 const sigLamps = [];
 function buildSignal() {
@@ -741,17 +831,17 @@ function setExplode(t) {
 
 // ───────────────────────── 조립 순서 (부품 이름 앞부분으로 찾음)
 const STEPS = [
-  { t: "MDF 클립보드 집게 떼기", p: ["아래판"], tools: "6mm 드릴 또는 일자 드라이버 · 펜치 · 장갑 · 보안경",
+  { t: "MDF 클립보드 집게 떼기", p: [], cut: 0, tools: "6mm 드릴 또는 일자 드라이버 · 펜치 · 장갑 · 보안경",
     d: "MDF 클립보드(16번) 2장 모두 집게를 뗌. ① 판을 뒤집어 집게를 고정한 리벳(보통 2개)의 위치를 확인. ② 드릴이 있으면: 리벳 머리 가운데에 6mm 날을 대고 머리만 갈릴 때까지 살살 뚫음 (판까지 뚫지 않게, 머리가 떨어지면 멈춤) → 반대쪽에서 리벳 몸통을 송곳이나 펜치로 밀어 뺌. ③ 드릴이 없으면: 집게를 젖혀 스프링 힘을 빼고, 집게 밑판과 MDF 사이에 일자 드라이버를 끼워 조금씩 들어 올림 → 리벳이 헐거워지면 펜치로 집게째 비틀어 뽑음. ④ 집게 스프링이 튈 수 있으니 장갑·보안경 착용. ⑤ 리벳 구멍과 눌린 자국이 있는 위쪽 40mm 는 쓰지 않으므로 판이 조금 찢어져도 괜찮음. 판 크기 228×315, 두께 3mm." },
-  { t: "1:1 도안 출력 · 배치", p: ["아래판"], tools: "프린터 · 자 · 마스킹테이프 · 연필",
+  { t: "1:1 도안 출력 · 배치", p: [], cut: 1, tools: "프린터 · 자 · 마스킹테이프 · 연필",
     d: "① blueprint/조립설계도.pdf 의 ③ 아래판, ④ 윗판·카메라 기둥 쪽을 인쇄: 크기 '실제 크기(100%)', '페이지에 맞춤' 끔. ② 종이 아래쪽 50mm 눈금을 자로 재서 정확히 50mm 인지 확인 (49·51mm 면 프린터 설정을 다시). ③ 도안을 굵은 바깥선에서 5mm 남기고 대충 오림. ④ 배치 (집게 자리 위쪽 40mm 는 비움): 1장째 = 아래판 217.5×135 를 아래쪽 모서리에 붙이고, 그 위에 윗판 145×100. 2장째 = 기둥 2장(20×113) · 카메라판 27×26 · 쐐기 2 · 받침 2, 남는 곳은 실수 대비 여분. ⑤ 판 가장자리 직각을 그대로 쓰도록 아래판 두 변을 판 모서리에 맞추면 자를 선이 2개 줄어듦. ⑥ 마스킹테이프로 네 귀퉁이를 붙여 밀리지 않게." },
-  { t: "아래판 자르기", p: ["아래판"], tools: "커터칼 (새 날) · 쇠자 · 커팅매트 또는 두꺼운 골판지 · 클램프 · 사포 #180",
+  { t: "아래판 자르기", p: [], cut: 2, tools: "커터칼 (새 날) · 쇠자 · 커팅매트 또는 두꺼운 골판지 · 클램프 · 사포 #180",
     d: "① 커팅매트 위에 판을 놓고 쇠자를 선 바로 바깥(버리는 쪽)에 대고 클램프나 손으로 꽉 누름. 손가락은 쇠자 안쪽에. ② 첫 번째는 힘을 빼고 가볍게 그어 홈을 만듦 → 같은 홈을 따라 6~8번, 점점 힘을 줌. 칼은 세우지 말고 30~45°로 눕혀서 당김. ③ 반쯤(1.5mm) 파이면 선을 책상 모서리에 맞추고 눌러 꺾음 → 뒷면 남은 종이층을 칼로 잘라 떼어 냄. ④ 순서: 먼저 큰 덩어리로 떼어 낸 뒤 (1장째에서 아래판+윗판 덩어리를 분리), 그다음 정확한 선. ⑤ 날이 무뎌져 MDF 가 뜯기면 바로 날을 한 칸 끊음. ⑥ 자른 면을 사포로 선까지 다듬고 → 217.5×135 인지 자로 확인, 네 귀퉁이 직각 확인. 도안 종이는 구멍 뚫을 때까지 붙여 둠." },
-  { t: "아래판 구멍 뚫기", p: ["아래판"], tools: "송곳 · 드릴(공작실) 3mm·5mm·8mm 날 · 버리는 나무판 · 사포",
+  { t: "아래판 구멍 뚫기", p: [], cut: 3, tools: "송곳 · 드릴(공작실) 3mm·5mm·8mm 날 · 버리는 나무판 · 사포",
     d: "① 도안의 십자 표시마다 송곳으로 꾹 눌러 중심을 찍음 (드릴 날이 미끄러지지 않게). ② 아래에 버리는 나무판을 깔고 판을 클램프로 고정. ③ 작은 구멍부터: 3mm 날로 서포트 4 · L298N 4(37×37) · 캐스터 2 · 홀더 2 → 구멍이 Ø3.2 정도가 됨. ④ 5mm 날로 LED 4 (네 모서리). ⑤ 8mm 는 3mm 로 먼저 뚫은 뒤 넓힘: 모터선 2. 큰 날을 바로 쓰면 MDF 가 깨짐. ⑥ 드릴은 천천히, 끝에서 힘을 빼야 뒷면이 터지지 않음. ⑦ 도안을 떼고 구멍 테두리 보풀을 사포로 정리. L298N·캐스터 구멍은 실물을 대보고 맞는지 확인, 모터 고정 구멍은 모터 단계에서 실물을 대고 표시." },
-  { t: "윗판 · 카메라 기둥 부품 자르기", p: ["아래판"], tools: "커터칼 · 쇠자 · 송곳 · 드릴 3mm·12mm(또는 3mm→8mm→칼로 넓힘) · 사포 · 각도기",
+  { t: "윗판 · 카메라 기둥 부품 자르기", p: [], cut: 4, tools: "커터칼 · 쇠자 · 송곳 · 드릴 3mm·12mm(또는 3mm→8mm→칼로 넓힘) · 사포 · 각도기",
     d: "① 윗판 145×100: 아래판과 같은 방법으로 자르고, Uno 구멍 4개 Ø3.2 · 서포트 4개 Ø3.2 · 배선 구멍 Ø12 를 뚫음 (12mm 날이 없으면 8mm 로 뚫고 칼로 둥글게 넓혀 사포). Uno 구멍은 Uno 를 대보고 맞으면 뚫기. ② 2장째 판에서 기둥 2장 20×113: 폭이 좁아 꺾다가 부러지기 쉬우니 끝까지 칼로 그어 자름. ③ 카메라판 27×26. ④ 쐐기 2개 (30° 직각삼각형, 13×22.5): 짧은 변을 먼저 자르고 빗변은 각도기로 30° 확인 후. ⑤ 기둥 받침 2개 (20×25 직각삼각형). ⑥ 작은 부품은 사포를 책상에 놓고 부품을 문질러 다듬음. 조각은 봉투에 모아 두고 카메라 단계에서 붙임." },
-  { t: "모터에 고정판 달기", p: ["TT 모터", "모터 고정판"], tools: "드라이버 · 송곳 · 펜 (키트 나사 포함)",
+  { t: "모터에 고정판 달기", p: ["아래판", "TT 모터", "모터 고정판"], tools: "드라이버 · 송곳 · 펜 (키트 나사 포함)",
     d: "① 모터 2개의 선(빨강·검정)이 풀리지 않았는지 확인. ② 키트 아크릴 고정판을 모터 안쪽 면에 대고 긴 M3 나사 2개를 모터 몸통 구멍에 관통 → 반대편 너트를 손으로 조임 (세게 조이면 기어박스가 휘어 뻑뻑해짐). ③ 판을 뒤집어 고정판 눕힌 면을 아래판 밑면에 대고, 바퀴축(흰 축)이 뒤 끝에서 152.5mm 선에 오게 맞춤. ④ 펜으로 고정판 구멍을 표시 → 3mm 로 뚫고 M3 나사·너트로 고정 (구멍이 안 맞으면 순간접착제 + 나사 1개). ⑤ 모터선은 Ø8 구멍으로 판 위로 올려 둠." },
   { t: "바퀴 끼우기", p: ["바퀴"], tools: "손 · 자",
     d: "바퀴 가운데 D자 구멍을 모터 바깥쪽 흰 축의 평평한 면에 맞춰 끝까지 밀어 넣음 (돌리면서 누르면 들어감). 두 바퀴 중심 사이 165mm, 바퀴가 판 옆면에 닿지 않는지 확인. 손으로 돌려 걸리는 곳이 없어야 함." },
@@ -838,12 +928,14 @@ function applyStep(animate = true) {
   solderG.visible = !!st.solder || $("tSolder").getAttribute("aria-pressed") === "true"; showRec = st.solder !== "must";
   stepT0 = animate ? performance.now() : 0;
   const now = parts.filter(p => mine(p) && st.p.some(n => p.name.startsWith(n)));
-  if (now.length) { const b = new THREE.Box3(); now.forEach(p => p.meshes.forEach(m => b.expandByObject(m)));
+  const ck = tab === "car" && st.cut != null ? st.cut : -1; showCut(ck);
+  if (ck >= 0) {}
+  else if (now.length) { const b = new THREE.Box3(); now.forEach(p => p.meshes.forEach(m => b.expandByObject(m)));
     flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 2.4, 230), V3(...(st.dir || [.8, .9, 1])).normalize()); }
   else view("iso");
 }
 function setSteps(on) {
-  stepMode = on; $("stepCard").hidden = !on; $("explode").value = 0; $("explode").disabled = on; setExplode(0); select(null);
+  stepMode = on; showCut(-1); $("stepCard").hidden = !on; $("explode").value = 0; $("explode").disabled = on; setExplode(0); select(null);
   if (on) { cur = 0; applyStep(); }
   else { parts.forEach(p => p.objs.forEach(([o]) => o.visible = true)); setExplode(0); solderG.visible = $("tSolder").getAttribute("aria-pressed") === "true"; showRec = true; view("iso"); }
 }
@@ -934,7 +1026,7 @@ function loop() {
   if (fly) { const k = Math.min((performance.now() - fly.t0) / 700, 1), e = 1 - Math.pow(1 - k, 3);
     camera.position.lerpVectors(fly.p0, fly.p1, e); controls.target.lerpVectors(fly.q0, fly.q1, e); if (k >= 1) fly = null; }
   controls.update();
-  animateStep(); updateSolder(tt);
+  animateStep(); animateCut(tt); updateSolder(tt);
   const on = Math.floor(tt * 2.6) % 2 === 0;
   for (const [k, l] of Object.entries(ledObjs)) { const lit = blink && on && (blink === "H" || k[0] === blink);
     (l.userData.leds || []).forEach(m => m.emissiveIntensity = lit ? 2.2 : 0); }
@@ -954,7 +1046,7 @@ function loop() {
 
 (async () => {
   try { await Promise.all([document.fonts.load('600 12px "IBM Plex Mono"'), document.fonts.load('700 12px "IBM Plex Sans KR"')]); } catch (e) {}
-  buildCar(); buildSignal(); finishParts(); fillWireTable();
+  buildCar(); buildCut(); buildSignal(); finishParts(); fillWireTable();
   car.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
   resize(); renderList();
   camera.position.copy(carCenter()).add(VIEWS.iso.clone().normalize().multiplyScalar(520)); controls.target.copy(carCenter());
