@@ -679,20 +679,20 @@ function drawing(p, key, x, y, z, done) {
     g.translate(ml, ml);
     g.strokeStyle = "#111"; g.lineWidth = .9; g.strokeRect(0, 0, w, h);
     g.lineWidth = .25;
-    for (let i = 0; i * 10 <= w; i++) { g.beginPath(); g.moveTo(i * 10, 0); g.lineTo(i * 10, i % 5 ? -2 : -4); g.stroke(); if (i % 5 === 0) T(g, String(i), i * 10, -7.5, 3.4, { c: "#333" }); }
-    for (let i = 0; i * 10 <= h; i++) { g.beginPath(); g.moveTo(0, i * 10); g.lineTo(i % 5 ? -2 : -4, i * 10); g.stroke(); if (i % 5 === 0 && i) T(g, String(i), -7.5, i * 10, 3.4, { c: "#333" }); }
-    T(g, `가로 ${cm(w)} cm`, 75, -7.5, 3, { c: "#c0392b" }); T(g, `세로 ${cm(h)} cm`, -7.5, 75, 3, { c: "#c0392b", rot: PI / 2 });
+    for (let i = 0; i * 10 <= w; i++) { g.beginPath(); g.moveTo(i * 10, 0); g.lineTo(i * 10, i % 5 ? -2 : -4); g.stroke(); if (i % 5 === 0) T(g, String(i), i * 10, -7.5, 3.8, { c: "#333" }); }
+    for (let i = 0; i * 10 <= h; i++) { g.beginPath(); g.moveTo(0, i * 10); g.lineTo(i % 5 ? -2 : -4, i * 10); g.stroke(); if (i % 5 === 0 && i) T(g, String(i), -7.5, i * 10, 3.8, { c: "#333" }); }
+    T(g, `가로 ${cm(w)} cm`, 75, -7.5, 3.6, { c: "#c0392b", w: 700 }); T(g, `세로 ${cm(h)} cm`, -7.5, 75, 3.6, { c: "#c0392b", rot: PI / 2 });
     g.fillStyle = "#c0392b"; g.beginPath(); g.arc(0, 0, 1.8, 0, 2 * PI); g.fill();
     if (key === "bottom") { g.strokeStyle = "#1f6fb2"; g.lineWidth = .3; g.setLineDash([3, 2]); g.beginPath(); g.moveTo(R, 0); g.lineTo(R, h); g.stroke(); g.setLineDash([]);
-      T(g, `바퀴축 (뒤에서 ${cm(R)} cm)`, R + 2, 122, 2.8, { a: "left", c: "#1f6fb2" }); }
-    T(g, title, 30, h - 7, 3.6, { a: "left", c: "#111" });
+      T(g, `바퀴축 (뒤에서 ${cm(R)} cm)`, R + 2, 122, 3.2, { a: "left", c: "#1f6fb2" }); }
+    T(g, title, 30, h - 7, 4.2, { a: "left", c: "#111" });
     T(g, "앞 →", fr[0], fr[1], 5, { c: "#2a9d5c" }); T(g, "← 뒤", bk[0], bk[1], 4, { c: "#2a9d5c" });
-    holeUV(key).forEach(([u, v, d, tag]) => { const [, col, out] = TAGS[tag], r = d / 2;
+    holeUV(key).forEach(([u, v, d, tag], i) => { const [, col, out] = TAGS[tag], r = d / 2;
       g.fillStyle = done ? "#3a2f25" : "#fff"; g.strokeStyle = col; g.lineWidth = .6; g.beginPath(); g.arc(u, v, r, 0, 2 * PI); g.fill(); g.stroke();
       g.lineWidth = .3; g.beginPath(); g.moveTo(u - r - 1.5, v); g.lineTo(u + r + 1.5, v); g.moveTo(u, v - r - 1.5); g.lineTo(u, v + r + 1.5); g.stroke();
-      T(g, `${cm(u)}, ${cm(v)}`, Math.min(Math.max(u, 11.5), w - 11.5), v + ((v > h / 2) === !!out ? 1 : -1) * (r + 3.4), 2.8, { c: col }); });
-    let ly = leg[1]; T(g, "(가로, 세로) cm · 기준 = ● 모서리", leg[0], ly, 2.8, { a: "left", c: "#c0392b" });
-    holeGroups(key).forEach(([tag, { d, pts }]) => { ly -= 4.2; T(g, `● ${TAGS[tag][0]} Ø${d} ×${pts.length}`, leg[0], ly, 2.8, { a: "left", c: TAGS[tag][1] }); });
+      T(g, `${cm(u)}, ${cm(v)}`, Math.min(Math.max(u, 13), w - 13), v + ((v > h / 2) === !!out ? 1 : -1) * (r + 3.6 + (tag === "m" && i % 2 ? 4 : 0)), 3.4, { c: col, w: 700 }); });
+    let ly = leg[1]; T(g, "(가로, 세로) cm · 기준 = ● 모서리", leg[0], ly, 3.2, { a: "left", c: "#c0392b" });
+    holeGroups(key).forEach(([tag, { d, pts }]) => { ly -= 4.6; T(g, `● ${TAGS[tag][0]} Ø${d} ×${pts.length}`, leg[0], ly, 3.2, { a: "left", c: TAGS[tag][1] }); });
   }, 10);
   return add(p, new THREE.PlaneGeometry(w + 16, h + 16), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }), x - ml + (w + 16) / 2, y - ml + (h + 16) / 2, z);
 }
@@ -773,55 +773,76 @@ function animateCut(t) {
 const sigCutG = grp(sig); sigCutG.visible = false;
 const sigCutStages = [];
 function ruled(p, w, h, x, y, title, body) {             // 검정 보드롱 조각 + 그 위 치수 도면 (cm 눈금자)
-  const m = 12;
+  const m = 18, B = { c: "#c0392b", w: 700 };
   box(p, w, h, 3, M("board", 0x111214, { roughness: .9 }), x + w / 2, y + h / 2, 1.5);
   const t = pcbTex(w + 2 * m, h + 2 * m, "#fbfbf7", g => {
-    g.translate(m, m); g.strokeStyle = "#111"; g.lineWidth = .9; g.strokeRect(0, 0, w, h); g.lineWidth = .25;
-    for (let i = 0; i * 10 <= w; i++) { g.beginPath(); g.moveTo(i * 10, 0); g.lineTo(i * 10, i % 5 ? -2 : -4); g.stroke(); if (i % 5 === 0) T(g, String(i), i * 10, -7.5, 3.2, { c: "#333" }); }
-    for (let i = 0; i * 10 <= h; i++) { g.beginPath(); g.moveTo(0, i * 10); g.lineTo(i % 5 ? -2 : -4, i * 10); g.stroke(); if (i % 5 === 0 && i) T(g, String(i), -7.5, i * 10, 3.2, { c: "#333" }); }
-    if (w < 80) T(g, title, 5, -9.6, 2.6, { a: "left", c: "#111" }); else T(g, title, 0, h + 6, 3, { a: "left", c: "#111" });
-    T(g, `가로 ${cm(w)} cm`, w, h + 6, 2.8, { a: "right", c: "#c0392b" });
-    if (h < 40) T(g, `${cm(h)} cm`, w + 6.2, h / 2, 2.4, { c: "#c0392b" }); else T(g, `세로 ${cm(h)} cm`, w + 6, h / 2, 2.8, { c: "#c0392b", rot: PI / 2 });
-    g.fillStyle = "#c0392b"; g.beginPath(); g.arc(0, 0, 1.6, 0, 2 * PI); g.fill();
+    g.translate(m, m); g.strokeStyle = "#e0342c"; g.lineWidth = 1.2; g.strokeRect(0, 0, w, h); g.strokeStyle = "#111"; g.lineWidth = .3;
+    for (let i = 0; i * 10 <= w; i++) { g.beginPath(); g.moveTo(i * 10, 0); g.lineTo(i * 10, i % 5 ? -2.5 : -4.5); g.stroke(); if (i % 5 === 0) T(g, String(i), i * 10, -8, 4, { c: "#222" }); }
+    for (let i = 0; i * 10 <= h; i++) { g.beginPath(); g.moveTo(0, i * 10); g.lineTo(i % 5 ? -2.5 : -4.5, i * 10); g.stroke(); if (i % 5 === 0 && i) T(g, String(i), -8, i * 10, 4, { c: "#222" }); }
+    if (w < 80) T(g, title, 0, -14.5, 3.4, { a: "left", c: "#111" });
+    else { T(g, title, 0, h + 9, 4.2, { a: "left", c: "#111", w: 700 }); T(g, "빨강 실선 = 끝까지 자름 · 파랑 점선 = 칼집 (반만 자름)", 0, -14.5, 3.4, { a: "left", c: "#555" }); }
+    T(g, `가로 ${cm(w)} cm`, w, h + 9, 4, Object.assign({ a: "right" }, B));
+    if (h < 40) T(g, `${cm(h)} cm`, w + 9, h / 2, 3.6, B); else T(g, `세로 ${cm(h)} cm`, w + 9, h / 2, 4, Object.assign({ rot: PI / 2 }, B));
+    g.fillStyle = "#c0392b"; g.beginPath(); g.arc(0, 0, 1.8, 0, 2 * PI); g.fill();
     body(g);
   }, 8);
   return add(p, new THREE.PlaneGeometry(w + 2 * m, h + 2 * m), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }), x + w / 2, y + h / 2, 3.3);
 }
 function folds(g, w) {                                   // 칼집 선 3줄 (1.5 · 3 · 4.5 cm)
-  g.strokeStyle = "#1f6fb2"; g.lineWidth = .4; g.setLineDash([4, 2]);
-  [15, 30, 45].forEach(v => { g.beginPath(); g.moveTo(0, v); g.lineTo(w, v); g.stroke(); T(g, `칼집 ${cm(v)} cm`, 4, v + 2.4, 2.6, { a: "left", c: "#1f6fb2" }); });
+  g.strokeStyle = "#1f6fb2"; g.lineWidth = .5; g.setLineDash([4, 2]);
+  [15, 30, 45].forEach(v => { g.beginPath(); g.moveTo(0, v); g.lineTo(w, v); g.stroke(); T(g, `칼집 ${cm(v)} cm`, 3, v + 3, 3.6, { a: "left", c: "#1f6fb2", w: 700 }); });
   g.setLineDash([]);
 }
 function dot(g, u, v, r, col) { g.fillStyle = "#fff"; g.strokeStyle = col; g.lineWidth = .6; g.beginPath(); g.arc(u, v, r, 0, 2 * PI); g.fill(); g.stroke();
   g.lineWidth = .3; g.beginPath(); g.moveTo(u - r - 1.5, v); g.lineTo(u + r + 1.5, v); g.moveTo(u, v - r - 1.5); g.lineTo(u, v + r + 1.5); g.stroke(); }
+const sigAnim = [];
+function knifeAt(p, x0, x1, ys) {                        // 선을 따라 오가는 커터칼 (한 번 오갈 때마다 다음 선으로)
+  const k = grp(p, x0, ys[0], 4);
+  box(k, 70, 14, 10, M("knife", 0xf2c200, { roughness: .4 }), -35, 0, 12); box(k, 14, 1, 10, mat.silver(), 4, 0, 5);
+  sigAnim.push({ k, x0, x1, ys });
+}
+function foldSample(p, x, y) {                           // 칼집 낸 띠를 접는 중인 모양 (길이 6cm 토막)
+  let py = 0, pz = 3, a = 0;
+  for (let i = 0; i < 4; i++) { const c = Math.cos(a), sn = Math.sin(a);
+    add(p, new THREE.BoxGeometry(60, 15, 3), M("board", 0x111214, { roughness: .9 }), x + 30, y + py + 7.5 * c, pz + 7.5 * sn, a, 0, 0);
+    add(p, new THREE.BoxGeometry(60, 14.4, .4), M("foamcut", 0xf2f0e8, { roughness: 1 }), x + 30, y + py + 7.5 * c + 1.7 * sn, pz + 7.5 * sn - 1.7 * c, a, 0, 0);
+    py += 15 * c; pz += 15 * sn; a += 1.15; }
+}
+function animateSigCut(t) {
+  if (!sigCutG.visible) return;
+  const ph = t * 2.2, w = .5 - .5 * Math.cos(ph), n = Math.floor(ph / (2 * PI));
+  sigAnim.forEach(({ k, x0, x1, ys }) => { k.position.x = x0 + (x1 - x0) * w; k.position.y = ys[n % ys.length]; });
+}
 function buildSigCut() {
-  const k = { c: "#222" };
-  const pole = (g, X, Y) => ruled(g, 330, 60, X, Y, "기둥 띠: 보드롱 6 × 33 cm", t => { folds(t, 330);
-    T(t, "점선 3줄 = 칼집: 앞면 종이와 폼만 자르고 뒷면 종이는 남김", 165, 52, 3.2, k);
-    T(t, "칼집 반대쪽으로 접어 1.5 × 1.5 cm 사각 기둥 (속이 비어 전선이 지나감)", 165, 37, 3.2, k);
-    T(t, "양 끝 변을 본드로 맞붙이고 마를 때까지 테이프로 감기", 165, 22, 3.2, k);
-    T(t, "← 아래 (바닥 쪽)                    위 (팔 붙는 쪽) →", 165, 7, 3.2, { c: "#2a9d5c" }); });
+  const k = { c: "#222" }, G = "#1e8449";
+  const pole = (g, X, Y) => { ruled(g, 330, 60, X, Y, "기둥 띠: 보드롱 6 × 33 cm", t => { folds(t, 330);
+      T(t, "파랑 점선 3줄 = 칼집: 앞면 종이와 폼만 자르고 뒷면 종이는 남김", 185, 53, 3.8, k);
+      T(t, "칼집 반대쪽으로 접어 1.5 × 1.5 cm 사각 기둥 (속이 비어 전선이 지나감)", 185, 38, 3.8, k);
+      T(t, "양 끝 변을 본드로 맞붙이고 마를 때까지 테이프로 감기", 185, 23, 3.8, k);
+      T(t, "← 아래 (바닥 쪽)                    위 (팔 붙는 쪽) →", 185, 7, 3.8, { c: G }); });
+    knifeAt(g, X + 45, X + 330, [Y + 15, Y + 30, Y + 45]); foldSample(g, X + 362, Y + 8); };
   const arm = (g, X, Y) => { ruled(g, 260, 60, X, Y, "팔 띠: 보드롱 6 × 26 cm", t => { folds(t, 260);
-    T(t, "같은 방법으로 접어 1.5 × 1.5 cm 사각 팔", 130, 52, 3.2, k);
-    T(t, "← 이쪽 끝을 기둥 맨 위 구멍에 맞대 붙임", 40, 37, 3.2, { a: "left", c: "#2a9d5c" });
-    T(t, "등 머리 다는 쪽 →", 254, 37, 3.2, { a: "right", c: "#2a9d5c" });
-    dot(t, 245, 22.5, 2.5, "#c0392b"); T(t, "전선 구멍 Ø0.5 · (24.5, 2.25)", 238, 22.5, 2.8, { a: "right", c: "#c0392b" }); });
-  ruled(g, 60, 60, X + 290, Y, "기둥 맨 위 6 cm", t => { folds(t, 60);
-    t.fillStyle = "rgba(224,52,44,.35)"; t.fillRect(45, 15, 15, 15); t.strokeStyle = "#c0392b"; t.lineWidth = .6; t.strokeRect(45, 15, 15, 15);
-    T(t, "구멍", 52.5, 24.5, 2.6, { c: "#c0392b" }); T(t, "1.5×1.5", 52.5, 20.5, 2.4, { c: "#c0392b" });
-    T(t, "팔 끼우는 구멍", 30, 54, 2.8, k); T(t, "위 끝 →", 57, 7, 2.8, { a: "right", c: "#2a9d5c" }); });
-  };
+      T(t, "같은 방법으로 접어 1.5 × 1.5 cm 사각 팔", 145, 53, 3.8, k);
+      T(t, "← 이쪽 끝을 기둥 맨 위 구멍에 붙임", 34, 38, 3.8, { a: "left", c: G });
+      T(t, "등 머리 쪽 →", 256, 38, 3.8, { a: "right", c: G });
+      dot(t, 245, 22.5, 2.5, "#c0392b"); T(t, "전선 구멍 Ø0.5 · (24.5, 2.25)", 238, 22.5, 3.6, { a: "right", c: "#c0392b", w: 700 }); });
+    ruled(g, 60, 60, X + 300, Y, "기둥 맨 위 6 cm", t => { folds(t, 60);
+      t.fillStyle = "rgba(224,52,44,.35)"; t.fillRect(45, 15, 15, 15); t.strokeStyle = "#c0392b"; t.lineWidth = .6; t.strokeRect(45, 15, 15, 15);
+      T(t, "구멍", 52.5, 25, 3, { c: "#c0392b", w: 700 }); T(t, "1.5×1.5", 52.5, 20.5, 2.8, { c: "#c0392b", w: 700 });
+      T(t, "팔 끼우는 구멍", 30, 54, 3.4, k); T(t, "위 끝 →", 57, 7, 3.2, { a: "right", c: G }); });
+    knifeAt(g, X + 45, X + 260, [Y + 15, Y + 30, Y + 45]); };
   const head = (g, X, Y) => {
-  const cols = ["#d8312b", "#b7860b", "#1e8449", "#1e8449"], names = ["빨강", "노랑", "화살표(초록)", "초록"];
-  ruled(g, 136, 32, X, Y + 30, "앞판 (앞에서 본 모습) · LED 구멍 Ø1", t => [26, 54, 82, 110].forEach((u, i) => { dot(t, u, 16, 5, cols[i]);
-    T(t, `${cm(u)}, 1.6`, u, 24.6, 2.6, { c: cols[i] }); T(t, names[i], u, 7.2, 2.8, { c: cols[i] }); }));
-  ruled(g, 136, 32, X, Y - 30, "뒤판 · 전선 구멍 Ø0.5", t => { dot(t, 68, 16, 2.5, "#c0392b"); T(t, "(6.8, 1.6)", 74, 16, 2.8, { a: "left", c: "#c0392b" }); });
-  ruled(g, 136, 14, X + 170, Y + 30, "위판 · 아래판 (같은 크기 2장)", t => T(t, "13.6 × 1.4 cm · 2장", 68, 7, 3.2, k));
-  ruled(g, 26, 14, X + 170, Y - 12, "옆판 2장", t => T(t, "×2", 13, 7, 3.2, k));
+    const cols = ["#d8312b", "#b7860b", "#1e8449", "#1e8449"], names = ["빨강", "노랑", "화살표(초록)", "초록"];
+    ruled(g, 136, 32, X, Y + 30, "앞판 (앞에서 본 모습) · LED 구멍 Ø1", t => [26, 54, 82, 110].forEach((u, i) => { dot(t, u, 16, 5, cols[i]);
+      T(t, `${cm(u)}, 1.6`, u, 24.6, 3.2, { c: cols[i], w: 700 }); T(t, names[i], u, 7, 3.2, { c: cols[i] }); }));
+    ruled(g, 136, 32, X, Y - 45, "뒤판 · 전선 구멍 Ø0.5", t => { dot(t, 68, 16, 2.5, "#c0392b"); T(t, "(6.8, 1.6)", 75, 16, 3.6, { a: "left", c: "#c0392b", w: 700 }); });
+    ruled(g, 136, 14, X + 180, Y + 30, "위판 · 아래판 (같은 크기 2장)", t => T(t, "13.6 × 1.4 cm · 2장", 68, 7, 4, k));
+    ruled(g, 26, 14, X + 180, Y - 25, "옆판 2장", t => T(t, "×2", 13, 7, 4, k));
+    knifeAt(g, X + 45, X + 136, [Y + 62, Y + 30]);
   };
   const st = f => { const g = grp(sigCutG); sigCutStages.push(g); f(g); };
   st(g => pole(g, -100, -200)); st(g => arm(g, -100, -200)); st(g => head(g, -100, -200));
-  st(g => { pole(g, -100, -200); arm(g, -100, -290); head(g, -100, -400); });   // 3 = 자를 조각 전체 (등 1개 분)
+  st(g => { pole(g, -100, -200); arm(g, -100, -300); head(g, -100, -410); });   // 3 = 자를 조각 전체 (등 1개 분)
 }
 
 // ───────────────────────── 신호등 (road_signal.ino)
@@ -1117,7 +1138,7 @@ function loop() {
   if (fly) { const k = Math.min((performance.now() - fly.t0) / 700, 1), e = 1 - Math.pow(1 - k, 3);
     camera.position.lerpVectors(fly.p0, fly.p1, e); controls.target.lerpVectors(fly.q0, fly.q1, e); if (k >= 1) fly = null; }
   controls.update();
-  animateStep(); animateCut(tt); updateSolder(tt);
+  animateStep(); animateCut(tt); animateSigCut(tt); updateSolder(tt);
   const on = Math.floor(tt * 2.6) % 2 === 0;
   for (const [k, l] of Object.entries(ledObjs)) { const lit = blink && on && (blink === "H" || k[0] === blink);
     (l.userData.leds || []).forEach(m => m.emissiveIntensity = lit ? 2.2 : 0); }
