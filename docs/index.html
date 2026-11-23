@@ -662,7 +662,7 @@ function buildSignal() {
   const cols = [0xff2a1f, 0xffc21a, 0x23d160, 0x23d160];
   // 보는 사람(앞 = -x) 기준 왼쪽부터: 왼쪽 = 차 쪽에서 볼 때 +y... 앞면이 -x 를 보므로 보는 사람의 왼쪽 = -y
   cols.forEach((c, j) => {
-    const y = (j - 1.5) * 28, lg = grp(head, -10, y, 0);
+    const y = (1.5 - j) * 28, lg = grp(head, -10, y, 0);
     const m = new THREE.MeshStandardMaterial({ color: c, roughness: .2, transparent: true, opacity: .92, emissive: c, emissiveIntensity: 0 });
     add(lg, new THREE.CylinderGeometry(5, 5, 8.6, 28), m, -1, 0, 0, 0, 0, PI / 2);
     add(lg, new THREE.SphereGeometry(5, 24, 12, 0, 2 * PI, 0, PI / 2), m, -5.3, 0, 0, 0, 0, PI / 2);
@@ -689,7 +689,7 @@ function buildSignal() {
   wc.forEach((c, i) => { const px = 150 + DPIN[2 + i], py = -24, pz = 3 + 1 + 1.6 + 8.5;      // Uno D2~D5 → 저항 (점퍼선)
     dupont(rw, px, py, pz - 6); wire(rw, [[px, py, pz + 6], [px, py, pz + 16], [(px + 75 + i * 5.08) / 2, -27, pz + 14], [75 + i * 5.08, -30, 16], [75 + i * 5.08, -29.5, 13]], c, .6); });
   { const gx = 150 + DPIN.GND; dupont(rw, gx, -24, 8.1); wire(rw, [[gx, -24, 20.1], [gx, -24, 30], [125, -50, 24], [112, -62, 14]], 0x1c1c1c, .6); }
-  wc.forEach((c, i) => wire(rw, [[75 + i * 5.08, -15, 15], [60 - i * 2, -6, 18], [14 - i * 2, 6, 20], [10, 6 + i * 2, 120], [10, 6 + i * 2, 323], [10, 40 + i * 2, 336], [10, 160 - i * 6, 336], [-2, 205 - i * 10, 320], head.position.toArray().map((v, k) => v + [8, (i - 1.5) * 28, 0][k])], c, .7));
+  wc.forEach((c, i) => wire(rw, [[75 + i * 5.08, -15, 15], [60 - i * 2, -6, 18], [14 - i * 2, 6, 20], [10, 6 + i * 2, 120], [10, 6 + i * 2, 323], [10, 40 + i * 2, 336], [10, 160 - i * 6, 336], [-2, 205 - i * 10, 320], head.position.toArray().map((v, k) => v + [8, (1.5 - i) * 28, 0][k])], c, .7));
   wire(rw, [[110, -60, 15], [20, -6, 18], [7, 9, 120], [7, 9, 323], [7, 40, 338], [7, 170, 338], [-2, 220, 318], [-2, 200, 306]], 0x1c1c1c, .7);
   wire(rw, [[148, -37, 11], [140, -10, 4], [60, 60, 2], [-140, 120, 2]], 0x9a9a9a, 1.6);
   part({ no: "13", name: "220Ω ×4 + 전선 5가닥", spec: "신호 4 + GND 1 · 기둥 뒤로 올림", tab: "sig" }, [[rw, V3(0, 0, 0)]]);
