@@ -839,7 +839,7 @@ function pieceOverlay(P) {                               // 조각 위에 겹쳐
     g.strokeStyle = "#e0342c"; g.lineWidth = .7; g.setLineDash([4, 2]); g.strokeRect(0, 0, w, h); g.setLineDash([]);
     g.fillStyle = "#e0342c"; g.beginPath(); g.arc(0, 0, 1.6, 0, 2 * PI); g.fill();
     I.arcs.forEach(([x, y, r, c]) => { g.strokeStyle = "#1f6fb2"; g.lineWidth = .3; ln(x - 2.5, y, x + 2.5, y); ln(x, y - 2.5, x, y + 2.5);
-      tagText(g, `R${f1(r)} 중심 (${f1(x)}, ${f1(y)})`, Math.min(Math.max(x, 22), w - 22), y + (r > 60 ? 5 : -5), 2.2, "#1f6fb2"); });
+      tagText(g, `R${f1(r)} 중심 (${f1(x)}, ${f1(y)})`, Math.min(Math.max(x, 22), w - 22), y + (r > 60 ? 5 : r > 30 ? -5 : -10), 2.2, "#1f6fb2"); });
     I.lines.forEach((L, i) => { const k = .3 + .12 * (i % 4), mid = L.a + (L.b - L.a) * k, txt = `${L.o === "h" ? "y" : "x"} ${f1(L.v)}` + (L.w !== 2 ? ` · 폭 ${L.w}` : "");
       tagText(g, txt, L.o === "h" ? mid : L.v, L.o === "h" ? L.v : mid, 2.4, TAPE[L.c][1]); });
     I.pts.forEach(([n, x, y]) => { g.fillStyle = "#e0342c"; g.beginPath(); g.arc(x, y, 1, 0, 2 * PI); g.fill();
