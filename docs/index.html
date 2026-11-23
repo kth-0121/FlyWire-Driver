@@ -759,7 +759,7 @@ function showCut(k) {
   const [G, stages] = tab === "sig" ? [sigCutG, sigCutStages] : [cutG, cutStages];
   G.visible = true; stages.forEach((g, i) => g.visible = i === k);
   const b = new THREE.Box3(); (stages[k].userData.focus || [stages[k]]).forEach(o => b.expandByObject(o));
-  flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 1.2, 300), V3(0, 1.6, .45).normalize());
+  flyTo(b.getCenter(V3()), Math.max(b.getSize(V3()).length() * 1.4, 300), V3(0, 1.6, .45).normalize());
 }
 function animateCut(t) {
   if (!cutG.visible) return;
