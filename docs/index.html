@@ -711,11 +711,11 @@ function pins(p, key) {                                 // 구멍 중심마다 �
   HOLES[key].forEach(([x, y, d, tag], i) => { const col = TAGS[tag][1], hgt = 16 + (i % 3) * 13, u = x - SPEC[key].ox, v = y - SPEC[key].oy;
     cylZ(p, .7, hgt, M("pin" + tag, col), x, y, 3 + hgt / 2, 8);
     cylZ(p, d / 2, .6, M("pin" + tag, col), x, y, 3.9, 20);
-    const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g = c.getContext("2d");
-    g.fillStyle = col; g.fillRect(0, 0, 256, 64); g.fillStyle = "#fff"; g.font = '700 32px "IBM Plex Mono", monospace'; g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(`${cm(u)}, ${cm(v)}`, 128, 34);
+    const c = document.createElement("canvas"); c.width = 368; c.height = 64; const g = c.getContext("2d");
+    g.fillStyle = col; g.fillRect(0, 0, 368, 64); g.fillStyle = "#fff"; g.font = '700 32px "IBM Plex Mono", monospace'; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(`${cm(u)}, ${cm(v)}  Ø${d / 10}`, 184, 34);
     const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false })); sp.scale.set(30, 7.5, 1); sp.position.set(x, y, 3 + hgt + 4.5); sp.renderOrder = 10; p.add(sp); });
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false })); sp.scale.set(43, 7.5, 1); sp.position.set(x, y, 3 + hgt + 4.5); sp.renderOrder = 10; p.add(sp); });
 }
 function buildCut() {
   // 0 집게 떼기: 판 두 장 + 집게 (위아래로 들림) + 리벳
